@@ -1,0 +1,50 @@
+<form id="webdavbackup_plugin_settings" class="form-horizontal">
+    <h4>Connection settings</h4>
+    <div class="accordion-inner">
+        <div class="control-group">
+            <label class="control-label">{{ _('Server') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.server">
+            </div>
+            <span class="help-block">
+                The WebDAV server to connect to.
+            </span>
+        </div>
+        <div class="control-group">
+            <label class="control-label">{{ _('Username') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.username">
+            </div>
+            <label class="control-label">{{ _('Password') }}</label>
+            <div class="controls">
+                <input type="password" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.password">
+            </div>
+            <span class="help-block">
+                The username and password to authenticate against WebDAV.<br>
+                <b>Please note that the password will be stored in plain text!</b>
+            </span>
+        </div>
+        <div class="control-group">
+            <div class="controls">
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.verify_certificate">{{ _('Verify certificate') }}
+                </label>
+            </div>
+            <span class="help-block">
+                Uncheck to allow self-signed and expired certificates.
+            </span>
+        </div>
+    </div>
+    <h4>File and folder settings</h4>
+    <div class="accordion-inner">
+        <div class="control-group">
+            <label class="control-label">{{ _('Path') }}</label>
+            <div class="controls">
+                <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_path">
+            </div>
+            <span class="help-block">
+                The path to save the back-up files to.
+            </span>
+        </div>
+    </div>
+</form>
