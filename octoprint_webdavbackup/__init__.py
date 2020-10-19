@@ -4,6 +4,7 @@ from __future__ import absolute_import
 import os
 import logging
 from webdav3.client import Client
+from datetime import datetime
 import octoprint.plugin
 from octoprint.events import Events, eventManager
 from octoprint.server import user_permission
@@ -34,6 +35,8 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
         if event == "plugin_backup_backup_created":
+            now = datetime.now()
+
             davoptions = {
                 'webdav_hostname': self._settings.get(["server"]),
                 'webdav_login':    self._settings.get(["username"]),
@@ -47,15 +50,25 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
             davclient = Client(davoptions)
             davclient.verify = self._settings.get(["verify_certificate"])
-            upload_path = self._settings.get(["upload_path"])
-            upload_file = os.path.join(upload_path, backup_name)
-            upload_temp = os.path.join(upload_path, backup_name + ".tmp")
-
-            if davclient.check(upload_path):
-                self._logger.info("Upload path " + upload_path + " was found.")
+            upload_path = now.strftime(self._settings.get(["upload_path"]))
+            if self._settings.get(["upload_name"]):
+                upload_name = now.strftime(self._settings.get(["upload_name"])) + os.path.splitext(backup_path)[1]
+                self._logger.debug("Filename for upload: " + upload_name)
             else:
-                self._logger.info("Upload path " + upload_path + " was not found, attempting to create.")
-                davclient.mkdir(upload_path)
+                upload_name = backup_name
+            upload_file = os.path.join(upload_path, upload_name)
+            upload_temp = os.path.join(upload_path, upload_name + ".tmp")
+
+            # Helper function to recursively create paths
+            def _recursive_create_path(path):
+                if davclient.check(path):
+                    self._logger.debug("Directory " + path + " was found.")
+                else:
+                    self._logger.debug("Directory " + path + " was not found, checking parent.")
+                    _recursive_create_path(os.path.abspath(os.path.join(path, "..")))
+                    davclient.mkdir(path)
+                    self._logger.debug("Directory " + path + " has been created.")
+            _recursive_create_path(upload_path)
 
             davclient.upload_sync(remote_path=upload_temp, local_path=backup_path)
             davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
@@ -97,6 +110,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 pip="https://github.com/edekeijzer/OctoPrint-WebDavBackup/archive/{target_version}.zip"
             )
         )
+
 
 __plugin_name__ = "WebDAV Backup"
 __plugin_pythoncompat__ = ">=2.7,<4"
