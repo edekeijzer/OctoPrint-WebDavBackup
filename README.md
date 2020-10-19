@@ -4,8 +4,8 @@ This plugin will automatically upload a backup upon completion to your WebDAV st
 
 ## Prerequisites
 
-### OctoPrint 1.5.0
-At least version 1.5.0 of OctoPrint is required because of event support in the backup plugin.
+### OctoPrint version
+At this moment you will need to install OctoPrint from fit because the current release does not yet have event support in the backup plugin.
 
 ### WebDAV storage
 You need a working WebDAV storage solution to upload your back-ups to. I have tested this against Nextcloud 17.
@@ -18,12 +18,10 @@ or manually using this URL:
     https://github.com/edekeijzer/OctoPrint-WebDavBackup/archive/master.zip
 
 ## To-Do
-
 - [X] ~~Develop this plugin~~
-- [ ] Customizable filenames
-- [ ] Create folders per year and/or month
+- [X] ~~Customizable filenames~~
+- [X] ~~Create folders per year and/or month~~
 - [ ] Improve error handling, display messages in UI
 
 ## Get Help
-
 If you experience issues with this plugin or need assistance please use the issue tracker by clicking issues above.
