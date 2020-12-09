@@ -14,7 +14,7 @@ plugin_package = "octoprint_webdavbackup"
 plugin_name = "WebDAV Backup"
 
 # The plugin's version. Can be overwritten within OctoPrint's internal data via __plugin_version__ in the plugin module
-plugin_version = "0.0.2"
+plugin_version = "0.1.0"
 
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
 # module
@@ -24,7 +24,7 @@ plugin_description = """This plugin will automatically save a copy of your OctoP
 plugin_author = "edekeijzer"
 
 # The plugin's author's mail address.
-plugin_author_email = "edekeijzer@fscker.nl"
+plugin_author_email = "erik.de.keijzer@gmail.com"
 
 # The plugin's homepage URL. Can be overwritten within OctoPrint's internal data via __plugin_url__ in the plugin module
 plugin_url = "https://github.com/edekeijzer/OctoPrint-WebDavBackup"

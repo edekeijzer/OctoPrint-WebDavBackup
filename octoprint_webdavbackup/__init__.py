@@ -83,30 +83,17 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
         ]
 
     ##~~ Softwareupdate hook
-    def get_update_information(self):
+    def get_update_information(*args, **kwargs):
         return dict(
             webdavbackup=dict(
-                displayName="WebDAV Backup",
+                displayName=self._plugin_name,
                 displayVersion=self._plugin_version,
 
-                # version check: github repository
                 type="github_release",
                 user="edekeijzer",
                 repo="OctoPrint-WebDavBackup",
                 current=self._plugin_version,
-                stable_branch=dict(
-                    name="Stable",
-                    branch="master",
-                    comittish=["master"]
-                ),
-                prerelease_branches=[
-                    dict(
-                        name="Release Candidate",
-                        branch="rc",
-                        comittish=["rc", "master"]
-                    )
-                ],
-                # update method: pip
+
                 pip="https://github.com/edekeijzer/OctoPrint-WebDavBackup/archive/{target_version}.zip"
             )
         )

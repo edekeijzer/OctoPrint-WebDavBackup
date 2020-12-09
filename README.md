@@ -20,8 +20,8 @@ or manually using this URL:
 ## To-Do
 
 - [X] ~~Develop this plugin~~
-- [ ] Customizable filenames
-- [ ] Create folders per year and/or month
+- [X] Customizable filenames
+- [X] Create folders per year and/or month
 - [ ] Improve error handling, display messages in UI
 
 ## Get Help
