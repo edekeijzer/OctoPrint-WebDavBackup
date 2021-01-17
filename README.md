@@ -15,7 +15,7 @@ You need a working WebDAV storage solution to upload your back-ups to. I have te
 Install via the bundled [Plugin Manager](https://docs.octoprint.org/en/master/bundledplugins/pluginmanager.html)
 or manually using this URL:
 
-    https://github.com/edekeijzer/OctoPrint-WebDavBackup/archive/master.zip
+    https://github.com/edekeijzer/OctoPrint-WebDavBackup/archive/main.zip
 
 ## To-Do
 
