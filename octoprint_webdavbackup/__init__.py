@@ -1,10 +1,13 @@
 # coding=utf-8
 from __future__ import absolute_import
 
-import os
+from os import path as ospath
+import math
 import logging
 from webdav3.client import Client
+from webdav3.exceptions import WebDavException
 from datetime import datetime
+from http import HTTPStatus
 import octoprint.plugin
 from octoprint.events import Events, eventManager
 from octoprint.server import user_permission
@@ -35,6 +38,16 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
         if event == "plugin_backup_backup_created":
+            # Helper function for human readable sizes
+            def _convert_size(size_bytes):
+                if size_bytes == 0:
+                    return "0B"
+                size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+                i = int(math.floor(math.log(size_bytes, 1024)))
+                p = math.pow(1024, i)
+                s = round(size_bytes / p, 2)
+                return "%s %s" % (s, size_name[i])
+
             now = datetime.now()
 
             davoptions = {
@@ -51,28 +64,64 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             davclient = Client(davoptions)
             davclient.verify = self._settings.get(["verify_certificate"])
             upload_path = now.strftime(self._settings.get(["upload_path"]))
+            upload_path = ospath.join("/", upload_path)
             if self._settings.get(["upload_name"]):
-                upload_name = now.strftime(self._settings.get(["upload_name"])) + os.path.splitext(backup_path)[1]
+                upload_name = now.strftime(self._settings.get(["upload_name"])) + ospath.splitext(backup_path)[1]
                 self._logger.debug("Filename for upload: " + upload_name)
             else:
                 upload_name = backup_name
-            upload_file = os.path.join(upload_path, upload_name)
-            upload_temp = os.path.join(upload_path, upload_name + ".tmp")
+            upload_file = ospath.join("/", upload_path, upload_name)
+            upload_temp = ospath.join("/", upload_path, upload_name + ".tmp")
 
-            # Helper function to recursively create paths
-            def _recursive_create_path(path):
-                if davclient.check(path):
-                    self._logger.debug("Directory " + path + " was found.")
-                else:
-                    self._logger.debug("Directory " + path + " was not found, checking parent.")
-                    _recursive_create_path(os.path.abspath(os.path.join(path, "..")))
-                    davclient.mkdir(path)
-                    self._logger.debug("Directory " + path + " has been created.")
-            _recursive_create_path(upload_path)
+            # Check actual connection to the WebDAV server as the check command will not do this.
+            try:
+                dav_free = davclient.free()
+            except WebDavException as exception:
+                # Write error and exit function
+                status = HTTPStatus(exception.code)
+                switcher = {
+                    400: "Bad request",
+                    401: "Unauthorized",
+                    403: "Forbidden",
+                    404: "Not found",
+                    405: "Method not allowed",
+                    408: "Request timeout",
+                    500: "Internal error",
+                    501: "Not implemented",
+                    502: "Bad gateway",
+                    503: "Service unavailable",
+                    504: "Gateway timeout",
+                    508: "Loop detected",
+                }
+                http_error = str(status.value) + " " + switcher.get(exception.code, status.phrase)
+                self._logger.error("HTTP error encountered: " + http_error)
+                return
 
-            davclient.upload_sync(remote_path=upload_temp, local_path=backup_path)
-            davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
-            self._logger.info("Backup has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
+            self._logger.info("Free space on server: " + _convert_size(dav_free))
+
+            backup_size = ospath.getsize(backup_path)
+            self._logger.info("Backup file size: " + _convert_size(backup_size))
+
+            if backup_size > dav_free:
+                self._logger.error("Unable to upload, size is" + _convert_size(backup_size) + ", free space is " + _convert_size(dav_free))
+            else:
+                # Helper function to recursively create paths
+                def _recursive_create_path(path):
+                    # Append leading / for preventing abspath issues
+                    path = ospath.join("/", path)
+                    if davclient.check(path):
+                        self._logger.debug("Directory " + path + " was found.")
+                    else:
+                        self._logger.debug("Directory " + path + " was not found, checking parent.")
+                        _recursive_create_path(ospath.abspath(ospath.join(path, "..")))
+                        davclient.mkdir(path)
+                        self._logger.debug("Directory " + path + " has been created.")
+
+                _recursive_create_path(upload_path)
+
+                davclient.upload_sync(remote_path=upload_temp, local_path=backup_path)
+                davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
+                self._logger.info("Backup has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
 
     ##~~ TemplatePlugin mixin
     def get_template_configs(self):
