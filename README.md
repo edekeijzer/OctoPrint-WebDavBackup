@@ -13,10 +13,10 @@ You need a working WebDAV storage solution to upload your back-ups to. I have te
 ### Python 3
 This plugin is **not compatible** with Python 2.7. See [this blog post](https://octoprint.org/blog/2020/09/10/upgrade-to-py3/) on how to upgrade your OctoPi installation.
 
-### libxml2-dev and libxslt1-dev (Raspberry Pi)
+### libxml2-dev and libxslt1-dev (Raspberry Pi) or libxslt1.1
 For Raspberry Pi (ARM architecture) there is no pre-built package available for _lxml_, a dependency of the WebDAV library used in this plugin. To install this, it has to be built from source.
 To be able to do this, you will need the libxml2 and libxslt1 development packages, which can be installed on Debian based operating systems with the following command: _apt-get install libxml2-dev libxslt1-dev_
-For AMD64, a pre-built package is available, so these packages do not have to be installed.
+For AMD64, a pre-built package is available, so these build packages do not have to be installed. You will however need _libxslt1.1_ for the _lxml_ package, which is used by all Python WebDAV modules as far as I've noticed.
 
 ## Setup
 
@@ -31,7 +31,7 @@ or manually using this URL:
 - [X] ~~Customizable filenames~~
 - [X] ~~Create folders per year and/or month~~
 - [ ] Improve error handling, display messages in UI
-- [ ] Implement a connection test button
+- [ ] Implement a connection test button, create dummy file
 
 ## Get Help
 

@@ -34,6 +34,11 @@
                 </span>
             </div>
         </div>
+        <div class="control-group">
+            <div class="controls">
+                <button class="btn btn-primary btn-block" data-bind="click: testConnection, enable: !busy(), css: {disabled: busy()}"><i class="icon-spinner icon-spin" data-bind="visible: busy"></i> {{ _('Test connection') }}</button>
+            </div>
+        </div>
     </div>
     <h4>File and folder settings</h4>
     <div class="accordion-inner">

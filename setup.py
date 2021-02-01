@@ -33,7 +33,7 @@ plugin_url = "https://github.com/edekeijzer/OctoPrint-WebDavBackup"
 plugin_license = "MIT"
 
 # Any additional requirements besides OctoPrint should be listed here
-plugin_requires = ["webdavclient3"]
+plugin_requires = ["webdavclient3","lxml"]
 
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point

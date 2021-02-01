@@ -11,7 +11,9 @@ from http import HTTPStatus
 import octoprint.plugin
 from octoprint.events import Events, eventManager
 from octoprint.server import user_permission
+from octoprint.server import admin_permission
 from octoprint.settings import settings
+import flask
 
 SETTINGS_DEFAULTS = dict(
     server=None,
@@ -22,10 +24,12 @@ SETTINGS_DEFAULTS = dict(
     upload_path="/"
 )
 
-class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
-                              octoprint.plugin.AssetPlugin,
-                              octoprint.plugin.TemplatePlugin,
-                              octoprint.plugin.EventHandlerPlugin,
+class WebDavBackupPlugin(
+    octoprint.plugin.SettingsPlugin,
+    octoprint.plugin.AssetPlugin,
+    octoprint.plugin.TemplatePlugin,
+    octoprint.plugin.EventHandlerPlugin,
+    octoprint.plugin.SimpleApiPlugin,
 ):
 
     def __init__(self):
@@ -34,6 +38,35 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
     ##~~ SettingsPlugin mixin
     def get_settings_defaults(self):
         return SETTINGS_DEFAULTS
+
+    def on_settings_load(self):
+        data = octoprint.plugin.SettingsPlugin.on_settings_load(self)
+        return data
+
+    def on_settings_save(self, data):
+        if "server" in data and not data["server"]:
+            data["server"] = None
+
+        if "username" in data and not data["username"]:
+            data["username"] = None
+
+        if "password" in data and not data["password"]:
+            data["password"] = None
+
+        if "upload_path" in data and not data["upload_path"]:
+            data["upload_path"] = None
+
+        if "upload_name" in data and not data["upload_name"]:
+            data["upload_name"] = None
+
+        if "timeout" in data:
+            try:
+                data["timeout"] = int(data["timeout"])
+            except:
+                self._logger.exception("Got an invalid value to save for timeout, ignoring it")
+                del data["timeout"]
+
+        octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
@@ -131,8 +164,67 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             )
         ]
 
+    #~~ AssetPlugin API
+
+    def get_assets(self):
+        return dict(js=["js/webdavbackup.js"])
+
+    #~~ SimpleApiPlugin
+
+    def get_api_commands(self):
+        return dict(test=["test_connection","create_test_file"])
+
+    def on_api_command(self, command, data):
+        self._logger.info("API command received: " + command)
+        if not admin_permission.can():
+            return flask.make_response("Insufficient permissions", 403)
+
+        # Only reply on available commands
+        available_commands = self.get_api_commands()
+        if not command in available_commands:
+            return
+
+        davoptions = {
+            'webdav_hostname': data.get("server"),
+            'webdav_login': data.get("username"),
+            'webdav_password': data.get("password"),
+            'webdav_timeout': data.get("timeout"),
+        }
+
+        davclient = Client(davoptions)
+        davclient.verify = data.get("verify_certificate")
+
+        # Check actual connection to the WebDAV server by retrieving free space.
+        try:
+            dav_free = davclient.free()
+        except WebDavException as exception:
+            # Write error and exit function
+            status = HTTPStatus(exception.code)
+            dav_error_switcher = {
+                400: "Bad request",
+                401: "Unauthorized",
+                403: "Forbidden",
+                404: "Not found",
+                405: "Method not allowed",
+                408: "Request timeout",
+                500: "Internal error",
+                501: "Not implemented",
+                502: "Bad gateway",
+                503: "Service unavailable",
+                504: "Gateway timeout",
+                508: "Loop detected",
+            }
+            http_error = str(status.value) + " " + dav_error_switcher.get(exception.code, status.phrase)
+            self._logger.error("HTTP error encountered: " + http_error)
+            return flask.make_response(flask.jsonify(result=False, error="credentials"))
+        self._logger.info("Connection test successful")
+        if command == "test_connection":
+            return flask.make_response(flask.jsonify(result=dav_free))
+        else:
+            return flask.make_response(flask.jsonify(result="Not implemented"))
+
     ##~~ Softwareupdate hook
-    def get_update_information(*args, **kwargs):
+    def get_update_information(self):
         return dict(
             webdavbackup=dict(
                 displayName=self._plugin_name,
@@ -149,14 +241,13 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
 
 __plugin_name__ = "WebDAV Backup"
-__plugin_pythoncompat__ = ">=2.7,<4"
+__plugin_pythoncompat__ = ">=3,<4"
 
 def __plugin_load__():
     global __plugin_implementation__
     __plugin_implementation__ = WebDavBackupPlugin()
 
-    global __plugin_hooks__
-    __plugin_hooks__ = {
-        "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
-    }
-
+    # global __plugin_hooks__
+    # __plugin_hooks__ = {
+    #     "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
+    # }
