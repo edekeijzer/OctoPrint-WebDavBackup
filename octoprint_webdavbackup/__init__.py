@@ -150,7 +150,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
     def get_update_information(self):
         return dict(
             webdavbackup=dict(
-                displayName=self._plugin_name,
+                displayName="WebDAV Backup",
                 displayVersion=self._plugin_version,
 
                 type="github_release",
