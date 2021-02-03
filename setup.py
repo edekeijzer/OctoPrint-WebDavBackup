@@ -14,14 +14,14 @@ plugin_package = "octoprint_webdavbackup"
 plugin_name = "WebDAV Backup"
 
 # The plugin's version. Can be overwritten within OctoPrint's internal data via __plugin_version__ in the plugin module
-plugin_version = "0.2.0"
+plugin_version = "0.2.1"
 
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
 # module
 plugin_description = """This plugin will automatically save a copy of your OctoPrint backup to WebDAV storage upon completion."""
 
 # The plugin's author. Can be overwritten within OctoPrint's internal data via __plugin_author__ in the plugin module
-plugin_author = "edekeijzer"
+plugin_author = "Erik de Keijzer"
 
 # The plugin's author's mail address.
 plugin_author_email = "erik.de.keijzer@gmail.com"
@@ -33,7 +33,7 @@ plugin_url = "https://github.com/edekeijzer/OctoPrint-WebDavBackup"
 plugin_license = "MIT"
 
 # Any additional requirements besides OctoPrint should be listed here
-plugin_requires = ["webdavclient3"]
+plugin_requires = ["webdavclient3","lxml"]
 
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point
