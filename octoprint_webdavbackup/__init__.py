@@ -5,7 +5,7 @@ from os import path as ospath
 import math
 import logging
 from webdav3.client import Client
-from webdav3.exceptions import WebDavException
+from webdav3.exceptions import WebDavException,ResponseErrorCode,RemoteResourceNotFound
 from datetime import datetime
 from http import HTTPStatus
 import octoprint.plugin
@@ -76,10 +76,13 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             # Check actual connection to the WebDAV server as the check command will not do this.
             try:
                 dav_free = davclient.free()
-            except WebDavException as exception:
+            except RemoteResourceNotFound as exception:
+                self._logger.error("Resource was not found, something is probably wrong with your settings.")
+                return
+            except ResponseErrorCode as exception:
                 # Write error and exit function
                 status = HTTPStatus(exception.code)
-                switcher = {
+                error_switcher = {
                     400: "Bad request",
                     401: "Unauthorized",
                     403: "Forbidden",
@@ -93,12 +96,17 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                     504: "Gateway timeout",
                     508: "Loop detected",
                 }
-                http_error = str(status.value) + " " + switcher.get(exception.code, status.phrase)
-                self._logger.error("HTTP error encountered: " + http_error)
+                if (exception.code == 401):
+                    http_error = "HTTP error 401 encountered, your credentials are most likely wrong."
+                else:
+                    http_error = "HTTP error encountered: " + str(status.value) + " " + error_switcher.get(exception.code, status.phrase)
+                self._logger.error(http_error)
                 return
+            except WebDavException as exception:
+                self._logger.error("An unexpected WebDAV error was encountered: " + exception.args)
+                raise
 
             self._logger.info("Free space on server: " + _convert_size(dav_free))
-
             backup_size = ospath.getsize(backup_path)
             self._logger.info("Backup file size: " + _convert_size(backup_size))
 
@@ -111,17 +119,24 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                     path = ospath.join("/", path)
                     if davclient.check(path):
                         self._logger.debug("Directory " + path + " was found.")
+                        return True
                     else:
-                        self._logger.debug("Directory " + path + " was not found, checking parent.")
-                        _recursive_create_path(ospath.abspath(ospath.join(path, "..")))
-                        davclient.mkdir(path)
-                        self._logger.debug("Directory " + path + " has been created.")
+                        if path != "/":
+                            self._logger.debug("Directory " + path + " was not found, checking parent.")
+                            if _recursive_create_path(ospath.abspath(ospath.join(path, ".."))):
+                                davclient.mkdir(path)
+                                self._logger.debug("Directory " + path + " has been created.")
+                                return True
+                        else:
+                            self._logger.error("Could not find WebDAV root, something is probably wrong with your settings.")
+                            return False
 
-                _recursive_create_path(upload_path)
-
-                davclient.upload_sync(remote_path=upload_temp, local_path=backup_path)
-                davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
-                self._logger.info("Backup has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
+                if _recursive_create_path(upload_path):
+                    davclient.upload_sync(remote_path=upload_temp, local_path=backup_path)
+                    davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
+                    self._logger.info("Backup has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
+                else:
+                    self._logger.error("Something went wrong trying to check/create the upload path.")
 
     ##~~ TemplatePlugin mixin
     def get_template_configs(self):
@@ -132,7 +147,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
         ]
 
     ##~~ Softwareupdate hook
-    def get_update_information(*args, **kwargs):
+    def get_update_information(self):
         return dict(
             webdavbackup=dict(
                 displayName=self._plugin_name,
@@ -142,14 +157,25 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 user="edekeijzer",
                 repo="OctoPrint-WebDavBackup",
                 current=self._plugin_version,
-
+				stable_branch=dict(
+					name="Stable",
+					branch="main",
+					comittish=["main"]
+				),
+				prerelease_branches=[
+					dict(
+						name="Release Candidate",
+						branch="rc",
+						comittish=["rc", "main"]
+					)
+				],
                 pip="https://github.com/edekeijzer/OctoPrint-WebDavBackup/archive/{target_version}.zip"
             )
         )
 
 
 __plugin_name__ = "WebDAV Backup"
-__plugin_pythoncompat__ = ">=2.7,<4"
+__plugin_pythoncompat__ = ">=3,<4"
 
 def __plugin_load__():
     global __plugin_implementation__
