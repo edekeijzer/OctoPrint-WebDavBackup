@@ -70,15 +70,18 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
             if self._settings.get(["upload_name"]):
                 upload_name = now.strftime(self._settings.get(["upload_name"])) + ospath.splitext(backup_path)[1]
-                self._logger.debug("Filename for upload: " + upload_name)
             else:
                 upload_name = backup_name
+            self._logger.debug("Filename for upload: " + upload_name)
 
             upload_file = ospath.join("/", upload_path, upload_name)
             upload_temp = ospath.join("/", upload_path, upload_name + ".tmp")
 
+            self._logger.debug("Upload location: " + upload_file)
+
             # Check actual connection to the WebDAV server as the check command will not do this.
             if check_space:
+                self._logger.debug("Attempting to check free space.")
                 try:
                     # If the resource was not found
                     dav_free = davclient.free()
@@ -118,9 +121,10 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                     self._logger.error("An unexpected WebDAV error was encountered: " + exception.args)
                     raise
             else:
+                self._logger.debug("Not checking free space, just try to check the WebDAV root.")
                 # Not as proper of a check as retrieving size, but it's something.
                 if davclient.check("/"):
-                    self._logger.info("Server returned WebDAV root.")
+                    self._logger.debug("Server returned WebDAV root.")
                 else:
                     self._logger.error("Server did not return WebDAV root, something is probably wronkg with your settings.")
                     return
@@ -128,8 +132,9 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             backup_size = ospath.getsize(backup_path)
             self._logger.info("Backup file size: " + _convert_size(backup_size))
 
-            if check_space and backup_size > dav_free:
+            if check_space and (backup_size > dav_free):
                 self._logger.error("Unable to upload, size is" + _convert_size(backup_size) + ", free space is " + _convert_size(dav_free))
+                return
             else:
                 # Helper function to recursively create paths
                 def _recursive_create_path(path):
@@ -150,7 +155,9 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             return False
 
                 if _recursive_create_path(upload_path):
+                    self._logger.debug("Uploading " + backup_path + " to " + upload_temp)
                     davclient.upload_sync(remote_path=upload_temp, local_path=backup_path)
+                    self._logger.debug("Moving " + upload_temp + " to " + upload_file)
                     davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
                     self._logger.info("Backup has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
                 else:
