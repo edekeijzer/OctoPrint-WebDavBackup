@@ -34,6 +34,16 @@
                 </span>
             </div>
         </div>
+        <div class="control-group">
+            <div class="controls">
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.check_space">{{ _('Check available space') }}
+                </label>
+                <span class="help-block">
+                    Should we check if the server has enough free space available? Not all WebDAV servers support this.
+                </span>
+            </div>
+        </div>
     </div>
     <h4>File and folder settings</h4>
     <div class="accordion-inner">
@@ -58,15 +68,5 @@
         <span class="help-block">
             Python date string formatting (%Y%m%d, %H:%M:%S) is allowed in both fields.
         </span>
-        <div class="control-group">
-            <div class="controls">
-                <label class="checkbox">
-                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.check_space">{{ _('Check available space') }}
-                </label>
-                <span class="help-block">
-                    Should we check if the server has enough free space available? Not all WebDAV servers support this.
-                </span>
-            </div>
-        </div>
     </div>
 </form>
