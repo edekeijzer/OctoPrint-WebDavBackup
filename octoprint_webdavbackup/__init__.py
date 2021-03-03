@@ -19,7 +19,8 @@ SETTINGS_DEFAULTS = dict(
     password=None,
     timeout=30,
     verify_certificate=True,
-    upload_path="/"
+    upload_path="/",
+    check_space=False
 )
 
 class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
@@ -63,6 +64,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
             davclient = Client(davoptions)
             davclient.verify = self._settings.get(["verify_certificate"])
+            check_space = self._settings.get(["check_space"])
             upload_path = now.strftime(self._settings.get(["upload_path"]))
             upload_path = ospath.join("/", upload_path)
             if self._settings.get(["upload_name"]):
@@ -75,7 +77,18 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
             # Check actual connection to the WebDAV server as the check command will not do this.
             try:
-                dav_free = davclient.free()
+                # If the resource was not found
+                if check_space:
+                    dav_free = davclient.free()
+                    if dav_free < 0:
+                        # If we get a negative free size, this server is not returning correct value.
+                        check_space = False
+                        self._logger.warning("Free space on server: " + _convert_size(dav_free) + ", it appears your server does not support reporting size correctly")
+                    else:
+                        self._logger.info("Free space on server: " + _convert_size(dav_free))
+                else:
+                    # Not as proper of a check as retrieving size, but it's something.
+                    davclient.check("/")
             except RemoteResourceNotFound as exception:
                 self._logger.error("Resource was not found, something is probably wrong with your settings.")
                 return
@@ -106,11 +119,10 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 self._logger.error("An unexpected WebDAV error was encountered: " + exception.args)
                 raise
 
-            self._logger.info("Free space on server: " + _convert_size(dav_free))
             backup_size = ospath.getsize(backup_path)
             self._logger.info("Backup file size: " + _convert_size(backup_size))
 
-            if backup_size > dav_free:
+            if check_space and backup_size > dav_free:
                 self._logger.error("Unable to upload, size is" + _convert_size(backup_size) + ", free space is " + _convert_size(dav_free))
             else:
                 # Helper function to recursively create paths
