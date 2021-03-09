@@ -56,6 +56,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 'webdav_login':    self._settings.get(["username"]),
                 'webdav_password': self._settings.get(["password"]),
                 'webdav_timeout': self._settings.get(["timeout"]),
+                'disable_check': True
             }
 
             backup_path = payload["path"]
