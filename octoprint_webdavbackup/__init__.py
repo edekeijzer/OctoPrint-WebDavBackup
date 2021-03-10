@@ -13,6 +13,7 @@ from octoprint.events import Events, eventManager
 from octoprint.server import user_permission
 from octoprint.settings import settings
 
+# Tick boxes set to default of True
 SETTINGS_DEFAULTS = dict(
     server=None,
     username=None,
@@ -20,7 +21,8 @@ SETTINGS_DEFAULTS = dict(
     timeout=30,
     verify_certificate=True,
     upload_path="/",
-    check_space=False
+    check_space=True,
+    check_directories=True
 )
 
 class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
@@ -50,13 +52,20 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 return "%s %s" % (s, size_name[i])
 
             now = datetime.now()
+            
+            # Disables checking of remote WebDAV server using WebDAV_root.
+            # Checking causes errors with certain remote servers.
+            if self._settings.get(["check_directories"]): 
+                checks_disabled = False
+            else:
+                checks_disabled =  True
 
             davoptions = {
                 'webdav_hostname': self._settings.get(["server"]),
                 'webdav_login':    self._settings.get(["username"]),
                 'webdav_password': self._settings.get(["password"]),
-                'webdav_timeout': self._settings.get(["timeout"]),
-                'disable_check': True
+                'webdav_timeout':  self._settings.get(["timeout"]),
+                'disable_check':   checks_disabled,
             }
 
             backup_path = payload["path"]
@@ -127,7 +136,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 if davclient.check("/"):
                     self._logger.debug("Server returned WebDAV root.")
                 else:
-                    self._logger.error("Server did not return WebDAV root, something is probably wronkg with your settings.")
+                    self._logger.error("Server did not return WebDAV root, something is probably wrong with your settings.")
                     return
 
             backup_size = ospath.getsize(backup_path)

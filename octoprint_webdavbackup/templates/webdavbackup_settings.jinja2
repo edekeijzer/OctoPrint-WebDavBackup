@@ -40,7 +40,19 @@
                     <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.check_space">{{ _('Check available space') }}
                 </label>
                 <span class="help-block">
-                    Should we check if the server has enough free space available? Not all WebDAV servers support this.
+                    Should we check if the server has enough free space available?<br>
+                    Not all WebDAV servers support this.
+                </span>
+            </div>
+        </div>
+                <div class="control-group">
+            <div class="controls">
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.check_directories">{{ _('Check server directories') }}
+                </label>
+                <span class="help-block">
+                    Should we check the server directory path prior to upload?<br>
+                    Not all WebDAV servers support this.
                 </span>
             </div>
         </div>
