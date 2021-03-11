@@ -67,63 +67,74 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             check_space = self._settings.get(["check_space"])
             upload_path = now.strftime(self._settings.get(["upload_path"]))
             upload_path = ospath.join("/", upload_path)
+
             if self._settings.get(["upload_name"]):
                 upload_name = now.strftime(self._settings.get(["upload_name"])) + ospath.splitext(backup_path)[1]
-                self._logger.debug("Filename for upload: " + upload_name)
             else:
                 upload_name = backup_name
+            self._logger.debug("Filename for upload: " + upload_name)
+
             upload_file = ospath.join("/", upload_path, upload_name)
             upload_temp = ospath.join("/", upload_path, upload_name + ".tmp")
 
+            self._logger.debug("Upload location: " + upload_file)
+
             # Check actual connection to the WebDAV server as the check command will not do this.
-            try:
-                # If the resource was not found
-                if check_space:
+            if check_space:
+                self._logger.debug("Attempting to check free space.")
+                try:
+                    # If the resource was not found
                     dav_free = davclient.free()
                     if dav_free < 0:
                         # If we get a negative free size, this server is not returning correct value.
                         check_space = False
-                        self._logger.warning("Free space on server: " + _convert_size(dav_free) + ", it appears your server does not support reporting size correctly")
+                        self._logger.warning("Free space on server: " + _convert_size(dav_free) + ", it appears your server does not support reporting size correctly but it's still a proper way to check connectivity.")
                     else:
                         self._logger.info("Free space on server: " + _convert_size(dav_free))
+                except RemoteResourceNotFound as exception:
+                    self._logger.error("Resource was not found, something is probably wrong with your settings.")
+                    return
+                except ResponseErrorCode as exception:
+                    # Write error and exit function
+                    status = HTTPStatus(exception.code)
+                    error_switcher = {
+                        400: "Bad request",
+                        401: "Unauthorized",
+                        403: "Forbidden",
+                        404: "Not found",
+                        405: "Method not allowed",
+                        408: "Request timeout",
+                        500: "Internal error",
+                        501: "Not implemented",
+                        502: "Bad gateway",
+                        503: "Service unavailable",
+                        504: "Gateway timeout",
+                        508: "Loop detected",
+                    }
+                    if (exception.code == 401):
+                        http_error = "HTTP error 401 encountered, your credentials are most likely wrong."
+                    else:
+                        http_error = "HTTP error encountered: " + str(status.value) + " " + error_switcher.get(exception.code, status.phrase)
+                    self._logger.error(http_error)
+                    return
+                except WebDavException as exception:
+                    self._logger.error("An unexpected WebDAV error was encountered: " + exception.args)
+                    raise
+            else:
+                self._logger.debug("Not checking free space, just try to check the WebDAV root.")
+                # Not as proper of a check as retrieving size, but it's something.
+                if davclient.check("/"):
+                    self._logger.debug("Server returned WebDAV root.")
                 else:
-                    # Not as proper of a check as retrieving size, but it's something.
-                    davclient.check("/")
-            except RemoteResourceNotFound as exception:
-                self._logger.error("Resource was not found, something is probably wrong with your settings.")
-                return
-            except ResponseErrorCode as exception:
-                # Write error and exit function
-                status = HTTPStatus(exception.code)
-                error_switcher = {
-                    400: "Bad request",
-                    401: "Unauthorized",
-                    403: "Forbidden",
-                    404: "Not found",
-                    405: "Method not allowed",
-                    408: "Request timeout",
-                    500: "Internal error",
-                    501: "Not implemented",
-                    502: "Bad gateway",
-                    503: "Service unavailable",
-                    504: "Gateway timeout",
-                    508: "Loop detected",
-                }
-                if (exception.code == 401):
-                    http_error = "HTTP error 401 encountered, your credentials are most likely wrong."
-                else:
-                    http_error = "HTTP error encountered: " + str(status.value) + " " + error_switcher.get(exception.code, status.phrase)
-                self._logger.error(http_error)
-                return
-            except WebDavException as exception:
-                self._logger.error("An unexpected WebDAV error was encountered: " + exception.args)
-                raise
+                    self._logger.error("Server did not return WebDAV root, something is probably wronkg with your settings.")
+                    return
 
             backup_size = ospath.getsize(backup_path)
             self._logger.info("Backup file size: " + _convert_size(backup_size))
 
-            if check_space and backup_size > dav_free:
+            if check_space and (backup_size > dav_free):
                 self._logger.error("Unable to upload, size is" + _convert_size(backup_size) + ", free space is " + _convert_size(dav_free))
+                return
             else:
                 # Helper function to recursively create paths
                 def _recursive_create_path(path):
@@ -144,7 +155,9 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             return False
 
                 if _recursive_create_path(upload_path):
+                    self._logger.debug("Uploading " + backup_path + " to " + upload_temp)
                     davclient.upload_sync(remote_path=upload_temp, local_path=backup_path)
+                    self._logger.debug("Moving " + upload_temp + " to " + upload_file)
                     davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
                     self._logger.info("Backup has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
                 else:
