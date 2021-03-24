@@ -94,9 +94,19 @@
                     </span>
                 </div>
             </div>
-            <span class="help-block">
-                Python date string formatting (%Y%m%d, %H:%M:%S) is allowed in both fields.
-            </span>
+        </div>
+        <span class="help-block">
+            Python date string formatting (%Y%m%d, %H:%M:%S) is allowed in all fields.
+        </span>
+        <div class="control-group">
+            <div class="controls">
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.remove_after_upload">{{ _('Remove after upload') }}
+                </label>
+                <span class="help-block">
+                    Should we remove backups and timelapse videos after successful upload to save local space?
+                </span>
+            </div>
         </div>
     </div>
 </form>

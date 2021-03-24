@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 from os import path as ospath
+from os import remove as osremove
 import math
 import logging
 from webdav3.client import Client
@@ -25,7 +26,8 @@ SETTINGS_DEFAULTS = dict(
     upload_timelapse_path=None,
     upload_timelapse_name=None,
     upload_timelapse_video=True,
-    upload_timelapse_snapshots=True # This will not be visible in settings
+    upload_timelapse_snapshots=True, # This will not be visible in settings
+    remove_after_upload=True
 )
 
 class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
@@ -43,6 +45,8 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
+        upload_timelapse_video = self._settings.get(["upload_timelapse_video"])
+        upload_timelapse_snapshots = self._settings.get(["upload_timelapse_snapshots"])
         if event == "plugin_backup_backup_created" or (event == "MovieDone" and upload_timelapse_video) or (event == "CaptureDone" and upload_timelapse_snapshots):
             # Helper function for human readable sizes
             def _convert_size(size_bytes):
@@ -187,11 +191,21 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             return False
 
                 if _recursive_create_path(upload_path):
-                    self._logger.debug("Uploading " + local_file_path + " to " + upload_temp)
-                    davclient.upload_sync(remote_path=upload_temp, local_path=local_file_path)
-                    self._logger.debug("Moving " + upload_temp + " to " + upload_file)
-                    davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
-                    self._logger.info("File has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
+                    try:
+                        self._logger.debug("Uploading " + local_file_path + " to " + upload_temp)
+                        davclient.upload_sync(remote_path=upload_temp, local_path=local_file_path)
+                        self._logger.debug("Moving " + upload_temp + " to " + upload_file)
+                        davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
+                        self._logger.info("File has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
+
+                        remove_after_upload = self._settings.get(["remove_after_upload"])
+                        if remove_after_upload and event != "CaptureDone":
+                            # Don't remove the timelapse snapshots, it will make it hard to create a video from them!
+                            self._logger.debug("Removing local file after successful upload has been enabled.")
+                            osremove(local_file_path)
+                            
+                    except as exception:
+                        self._logger.error("Something went wrong uploading the file, local file not removed: " + exception.args)
                 else:
                     self._logger.error("Something went wrong trying to check/create the upload path.")
 
