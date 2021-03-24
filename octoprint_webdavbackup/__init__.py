@@ -24,7 +24,7 @@ SETTINGS_DEFAULTS = dict(
     check_space=False,
     upload_timelapse_path=None,
     upload_timelapse_name=None,
-    upload_timelapse_video=True
+    upload_timelapse_video=True,
     upload_timelapse_snapshots=True # This will not be visible in settings
 )
 
