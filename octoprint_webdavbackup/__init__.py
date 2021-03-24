@@ -20,7 +20,12 @@ SETTINGS_DEFAULTS = dict(
     timeout=30,
     verify_certificate=True,
     upload_path="/",
-    check_space=False
+    upload_name=None,
+    check_space=False,
+    upload_timelapse_path=None,
+    upload_timelapse_name=None,
+    upload_timelapse_video=True
+    upload_timelapse_snapshots=True # This will not be visible in settings
 )
 
 class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
@@ -38,7 +43,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
-        if event == "plugin_backup_backup_created":
+        if event == "plugin_backup_backup_created" or (event == "MovieDone" and upload_timelapse_video) or (event == "CaptureDone" and upload_timelapse_snapshots):
             # Helper function for human readable sizes
             def _convert_size(size_bytes):
                 if size_bytes == 0:
@@ -58,20 +63,47 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 'webdav_timeout': self._settings.get(["timeout"]),
             }
 
-            backup_path = payload["path"]
-            backup_name = payload["name"]
-            self._logger.info("Backup " + backup_path + " created, will now attempt to upload to " + davoptions["webdav_hostname"])
+            if event == "plugin_backup_backup_created":
+                local_file_path = payload["path"]
+                local_file_name = payload["name"]
+                self._logger.info("Backup " + local_file_path + " created, will now attempt to upload to " + davoptions["webdav_hostname"])
+                if self._settings.get(["upload_name"]):
+                    upload_name = now.strftime(self._settings.get(["upload_name"])) + ospath.splitext(local_file_path)[1]
+                else:
+                    upload_name = local_file_name
+                upload_path = now.strftime(self._settings.get(["upload_path"]))
+            elif event == "MovieDone":
+                local_file_path = payload["movie"]
+                local_file_name = payload["movie_basename"]
+                self._logger.info("Timelapse movie " + local_file_path + " created, will now attempt to upload to " + davoptions["webdav_hostname"])
+                if self._settings.get(["upload_timelapse_name"]):
+                    upload_name = now.strftime(self._settings.get(["upload_timelapse_name"])) + local_file_name
+                else:
+                    upload_name = local_file_name
+                if self._settings.get(["upload_timelapse_path"]):
+                    upload_path = now.strftime(self._settings.get(["upload_timelapse_path"]))
+                else:
+                    # If no specific path is set for timelapses, upload them to the same directory as the backups
+                    upload_path = now.strftime(self._settings.get(["upload_path"]))
+            elif event == "CaptureDone":
+                local_file_path = payload["file"]
+                local_file_name = ospath.split(local_file_path)[1]
+                self._logger.info("Timelapse snapshot " + local_file_path + " created, will now attempt to upload to " + davoptions["webdav_hostname"] + " as " + local_file_name)
+                if self._settings.get(["upload_timelapse_name"]):
+                    upload_name = now.strftime(self._settings.get(["upload_timelapse_name"])) + local_file_name
+                else:
+                    upload_name = local_file_name
+                if self._settings.get(["upload_timelapse_path"]):
+                    upload_path = now.strftime(self._settings.get(["upload_timelapse_path"]))
+                else:
+                    # If no specific path is set for timelapses, upload them to the same directory as the backups
+                    upload_path = now.strftime(self._settings.get(["upload_path"]))
 
             davclient = Client(davoptions)
             davclient.verify = self._settings.get(["verify_certificate"])
             check_space = self._settings.get(["check_space"])
-            upload_path = now.strftime(self._settings.get(["upload_path"]))
             upload_path = ospath.join("/", upload_path)
 
-            if self._settings.get(["upload_name"]):
-                upload_name = now.strftime(self._settings.get(["upload_name"])) + ospath.splitext(backup_path)[1]
-            else:
-                upload_name = backup_name
             self._logger.debug("Filename for upload: " + upload_name)
 
             upload_file = ospath.join("/", upload_path, upload_name)
@@ -126,14 +158,14 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 if davclient.check("/"):
                     self._logger.debug("Server returned WebDAV root.")
                 else:
-                    self._logger.error("Server did not return WebDAV root, something is probably wronkg with your settings.")
+                    self._logger.error("Server did not return WebDAV root, something is probably wrong with your settings.")
                     return
 
-            backup_size = ospath.getsize(backup_path)
-            self._logger.info("Backup file size: " + _convert_size(backup_size))
+            local_file_size = ospath.getsize(local_file_path)
+            self._logger.info("File size: " + _convert_size(local_file_size))
 
-            if check_space and (backup_size > dav_free):
-                self._logger.error("Unable to upload, size is" + _convert_size(backup_size) + ", free space is " + _convert_size(dav_free))
+            if check_space and (local_file_size > dav_free):
+                self._logger.error("Unable to upload, size is" + _convert_size(local_file_size) + ", free space is " + _convert_size(dav_free))
                 return
             else:
                 # Helper function to recursively create paths
@@ -155,11 +187,11 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             return False
 
                 if _recursive_create_path(upload_path):
-                    self._logger.debug("Uploading " + backup_path + " to " + upload_temp)
-                    davclient.upload_sync(remote_path=upload_temp, local_path=backup_path)
+                    self._logger.debug("Uploading " + local_file_path + " to " + upload_temp)
+                    davclient.upload_sync(remote_path=upload_temp, local_path=local_file_path)
                     self._logger.debug("Moving " + upload_temp + " to " + upload_file)
                     davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
-                    self._logger.info("Backup has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
+                    self._logger.info("File has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
                 else:
                     self._logger.error("Something went wrong trying to check/create the upload path.")
 
