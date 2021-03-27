@@ -14,22 +14,6 @@ from octoprint.events import Events, eventManager
 from octoprint.server import user_permission
 from octoprint.settings import settings
 
-SETTINGS_DEFAULTS = dict(
-    server=None,
-    username=None,
-    password=None,
-    timeout=30,
-    verify_certificate=True,
-    upload_path="/",
-    upload_name=None,
-    check_space=False,
-    upload_timelapse_path=None,
-    upload_timelapse_name=None,
-    upload_timelapse_video=True,
-    upload_timelapse_snapshots=True, # This will not be visible in settings
-    remove_after_upload=True
-)
-
 class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                               octoprint.plugin.AssetPlugin,
                               octoprint.plugin.TemplatePlugin,
@@ -41,7 +25,30 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
     ##~~ SettingsPlugin mixin
     def get_settings_defaults(self):
-        return SETTINGS_DEFAULTS
+        settings_defaults = dict(
+            server=None,
+            username=None,
+            password=None,
+            timeout=30,
+            verify_certificate=True,
+            upload_path="/",
+            upload_name=None,
+            check_space=False,
+            upload_timelapse_path=None,
+            upload_timelapse_name=None,
+            upload_timelapse_video=True,
+            upload_timelapse_snapshots=False, # This will not be visible in settings
+            remove_after_upload=False
+        )
+        return settings_defaults
+
+    def get_settings_version(self):
+        return 2
+
+#    def on_settings_migrate(self, target, current):
+
+    def on_settings_save(self, data):
+        octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
@@ -203,9 +210,8 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             # Don't remove the timelapse snapshots, it will make it hard to create a video from them!
                             self._logger.debug("Removing local file after successful upload has been enabled.")
                             osremove(local_file_path)
-                            
-                    except as exception:
-                        self._logger.error("Something went wrong uploading the file, local file not removed: " + exception.args)
+                    except:
+                        self._logger.error("Something went wrong uploading the file, local file not removed.")
                 else:
                     self._logger.error("Something went wrong trying to check/create the upload path.")
 
