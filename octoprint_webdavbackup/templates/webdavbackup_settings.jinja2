@@ -40,7 +40,22 @@
                     <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.check_space">{{ _('Check available space') }}
                 </label>
                 <span class="help-block">
-                    Should we check if the server has enough free space available? Not all WebDAV servers support this.
+                    Should we check if the server has enough free space available?<br/>
+                    Not all WebDAV servers support this.
+                </span>
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="controls">
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.disable_path_check">{{ _('Disable path check') }}
+                </label>
+                <span class="help-block">
+                    Should we skip checking the path and create directories if needed?<br/>
+                    Not all WebDAV servers support this.<br/>
+                </span>
+                <span class="help-block" data-bind="visible: settings.plugins.webdavbackup.disable_path_check" style="display: none">
+                    <b>Please note that this will require you to manually create the directories, it is strongly discouraged to use date variables in your path when you enable this!</b>
                 </span>
             </div>
         </div>
@@ -97,6 +112,9 @@
         </div>
         <span class="help-block">
             Python date string formatting (%Y%m%d, %H:%M:%S) is allowed in all fields.
+        </span>
+        <span class="help-block" data-bind="visible: settings.plugins.webdavbackup.disable_path_check" style="display: none">
+            <b>It is strongly discouraged to use date variables in directory paths because path checking is disabled!</b>
         </span>
         <div class="control-group">
             <div class="controls">

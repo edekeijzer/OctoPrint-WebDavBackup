@@ -34,16 +34,17 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             upload_path="/",
             upload_name=None,
             check_space=False,
+            skip_path_check=True,
             upload_timelapse_path=None,
             upload_timelapse_name=None,
             upload_timelapse_video=True,
             upload_timelapse_snapshots=False, # This will not be visible in settings
-            remove_after_upload=False
+            remove_after_upload=False,
         )
         return settings_defaults
 
     def get_settings_version(self):
-        return 2
+        return 3
 
 #    def on_settings_migrate(self, target, current):
 
@@ -113,6 +114,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             davclient = Client(davoptions)
             davclient.verify = self._settings.get(["verify_certificate"])
             check_space = self._settings.get(["check_space"])
+            skip_path_check = self._settings.get(["disable_path_check"])
             upload_path = ospath.join("/", upload_path)
 
             self._logger.debug("Filename for upload: " + upload_name)
@@ -163,7 +165,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 except WebDavException as exception:
                     self._logger.error("An unexpected WebDAV error was encountered: " + exception.args)
                     raise
-            else:
+            elif not skip_path_check:
                 self._logger.debug("Not checking free space, just try to check the WebDAV root.")
                 # Not as proper of a check as retrieving size, but it's something.
                 if davclient.check("/"):
@@ -171,6 +173,8 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 else:
                     self._logger.error("Server did not return WebDAV root, something is probably wrong with your settings.")
                     return
+            else:
+                self._logger.warning("All checks for successful connection are disabled.")
 
             local_file_size = ospath.getsize(local_file_path)
             self._logger.info("File size: " + _convert_size(local_file_size))
@@ -197,7 +201,12 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             self._logger.error("Could not find WebDAV root, something is probably wrong with your settings.")
                             return False
 
-                if _recursive_create_path(upload_path):
+                if skip_path_check:
+                    do_upload = True
+                else:
+                    do_upload = _recursive_create_path(upload_path)
+                
+                if do_upload:
                     try:
                         self._logger.debug("Uploading " + local_file_path + " to " + upload_temp)
                         davclient.upload_sync(remote_path=upload_temp, local_path=local_file_path)
@@ -211,7 +220,12 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             self._logger.debug("Removing local file after successful upload has been enabled.")
                             osremove(local_file_path)
                     except:
-                        self._logger.error("Something went wrong uploading the file, local file not removed.")
+                        if skip_path_check:
+                            self._logger.error("Something went wrong uploading the file. Since you disabled the path check, this could anything, like incorrect credentials or a non-existing directory: " + sys.exc_info()[0])
+                        elif remove_after_upload:
+                            self._logger.error("Something went wrong uploading the file (local file not removed): " + sys.exc_info()[0])
+                        else:
+                            self._logger.error("Something went wrong uploading the file: " + sys.exc_info()[0])
                 else:
                     self._logger.error("Something went wrong trying to check/create the upload path.")
 
@@ -244,7 +258,12 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 						name="Release Candidate",
 						branch="rc",
 						comittish=["rc", "main"]
-					)
+					),
+					dict(
+						name="Development",
+						branch="dev",
+						comittish=["dev", "rc", "main"]
+					),
 				],
                 pip="https://github.com/edekeijzer/OctoPrint-WebDavBackup/archive/{target_version}.zip"
             )
