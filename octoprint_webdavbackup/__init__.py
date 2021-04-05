@@ -219,13 +219,15 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             # Don't remove the timelapse snapshots, it will make it hard to create a video from them!
                             self._logger.debug("Removing local file after successful upload has been enabled.")
                             osremove(local_file_path)
+                    except RemoteParentNotFound:
+                        self._logger.error("The specified parent directory was not found, unable to upload.")
                     except:
                         if skip_path_check:
-                            self._logger.error("Something went wrong uploading the file. Since you disabled the path check, this could anything, like incorrect credentials or a non-existing directory: " + sys.exc_info()[0])
+                            self._logger.error("Something went wrong uploading the file. Since you disabled the path check, this could anything, like incorrect credentials or a non-existing directory.")
                         elif remove_after_upload:
-                            self._logger.error("Something went wrong uploading the file (local file not removed): " + sys.exc_info()[0])
+                            self._logger.error("Something went wrong uploading the file. (local file not removed)")
                         else:
-                            self._logger.error("Something went wrong uploading the file: " + sys.exc_info()[0])
+                            self._logger.error("Something went wrong uploading the file.")
                 else:
                     self._logger.error("Something went wrong trying to check/create the upload path.")
 
