@@ -35,7 +35,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             upload_path="/",
             upload_name=None,
             check_space=False,
-            skip_path_check=True,
+            skip_path_check=False,
             upload_timelapse_path=None,
             upload_timelapse_name=None,
             upload_timelapse_video=True,
@@ -74,6 +74,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 'webdav_login':    self._settings.get(["username"]),
                 'webdav_password': self._settings.get(["password"]),
                 'webdav_timeout': self._settings.get(["timeout"]),
+                'disable_check': self._settings.get(["disable_path_check"]),
             }
 
             if event == "plugin_backup_backup_created":
@@ -202,17 +203,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             self._logger.error("Could not find WebDAV root, something is probably wrong with your settings.")
                             return False
 
-                if skip_path_check:
-                    do_upload = True
-                else:
-                    self._logger.debug("We are going to recursively check " + upload_path)
-                    try:
-                        _recursive_create_path(upload_path)
-                        do_upload = True
-                    except:
-                        do_upload = False
-                
-                if do_upload:
+                if _recursive_create_path(upload_path):
                     try:
                         self._logger.debug("Uploading " + local_file_path + " to " + upload_temp)
                         davclient.upload_sync(remote_path=upload_temp, local_path=local_file_path)
