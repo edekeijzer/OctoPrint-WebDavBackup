@@ -6,7 +6,8 @@ from os import remove as osremove
 import math
 import logging
 from webdav3.client import Client
-from webdav3.exceptions import WebDavException,ResponseErrorCode,RemoteResourceNotFound
+from webdav3.exceptions import WebDavException, ResponseErrorCode, RemoteResourceNotFound, RemoteParentNotFound
+# import webdav3.exceptions
 from datetime import datetime
 from http import HTTPStatus
 import octoprint.plugin
@@ -204,7 +205,12 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 if skip_path_check:
                     do_upload = True
                 else:
-                    do_upload = _recursive_create_path(upload_path)
+                    self._logger.debug("We are going to recursively check " + upload_path)
+                    try:
+                        _recursive_create_path(upload_path)
+                        do_upload = True
+                    except:
+                        do_upload = False
                 
                 if do_upload:
                     try:
