@@ -6,7 +6,8 @@ from os import remove as osremove
 import math
 import logging
 from webdav3.client import Client
-from webdav3.exceptions import WebDavException,ResponseErrorCode,RemoteResourceNotFound
+from webdav3.exceptions import WebDavException, ResponseErrorCode, RemoteResourceNotFound, RemoteParentNotFound
+# import webdav3.exceptions
 from datetime import datetime
 from http import HTTPStatus
 import octoprint.plugin
@@ -34,16 +35,17 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             upload_path="/",
             upload_name=None,
             check_space=False,
+            skip_path_check=False,
             upload_timelapse_path=None,
             upload_timelapse_name=None,
             upload_timelapse_video=True,
             upload_timelapse_snapshots=False, # This will not be visible in settings
-            remove_after_upload=False
+            remove_after_upload=False,
         )
         return settings_defaults
 
     def get_settings_version(self):
-        return 2
+        return 3
 
 #    def on_settings_migrate(self, target, current):
 
@@ -72,6 +74,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 'webdav_login':    self._settings.get(["username"]),
                 'webdav_password': self._settings.get(["password"]),
                 'webdav_timeout': self._settings.get(["timeout"]),
+                'disable_check': self._settings.get(["disable_path_check"]),
             }
 
             if event == "plugin_backup_backup_created":
@@ -113,6 +116,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             davclient = Client(davoptions)
             davclient.verify = self._settings.get(["verify_certificate"])
             check_space = self._settings.get(["check_space"])
+            skip_path_check = self._settings.get(["disable_path_check"])
             upload_path = ospath.join("/", upload_path)
 
             self._logger.debug("Filename for upload: " + upload_name)
@@ -163,7 +167,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 except WebDavException as exception:
                     self._logger.error("An unexpected WebDAV error was encountered: " + exception.args)
                     raise
-            else:
+            elif not skip_path_check:
                 self._logger.debug("Not checking free space, just try to check the WebDAV root.")
                 # Not as proper of a check as retrieving size, but it's something.
                 if davclient.check("/"):
@@ -171,6 +175,8 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 else:
                     self._logger.error("Server did not return WebDAV root, something is probably wrong with your settings.")
                     return
+            else:
+                self._logger.warning("All checks for successful connection are disabled.")
 
             local_file_size = ospath.getsize(local_file_path)
             self._logger.info("File size: " + _convert_size(local_file_size))
@@ -210,8 +216,15 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                             # Don't remove the timelapse snapshots, it will make it hard to create a video from them!
                             self._logger.debug("Removing local file after successful upload has been enabled.")
                             osremove(local_file_path)
+                    except RemoteParentNotFound:
+                        self._logger.error("The specified parent directory was not found, unable to upload.")
                     except:
-                        self._logger.error("Something went wrong uploading the file, local file not removed.")
+                        if skip_path_check:
+                            self._logger.error("Something went wrong uploading the file. Since you disabled the path check, this could anything, like incorrect credentials or a non-existing directory.")
+                        elif remove_after_upload:
+                            self._logger.error("Something went wrong uploading the file. (local file not removed)")
+                        else:
+                            self._logger.error("Something went wrong uploading the file.")
                 else:
                     self._logger.error("Something went wrong trying to check/create the upload path.")
 
@@ -244,7 +257,12 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 						name="Release Candidate",
 						branch="rc",
 						comittish=["rc", "main"]
-					)
+					),
+					dict(
+						name="Development",
+						branch="dev",
+						comittish=["dev", "rc", "main"]
+					),
 				],
                 pip="https://github.com/edekeijzer/OctoPrint-WebDavBackup/archive/{target_version}.zip"
             )
