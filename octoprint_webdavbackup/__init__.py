@@ -121,26 +121,25 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 local_file_storage = payload["storage"]
                 local_file_path = payload["path"]
                 local_file_name = payload["name"]
-                local_file = ospath.join("/", local_file_path, local_file_name)
                 local_file_type = payload["type"]
 
                 if self._settings.get(["upload_other_filter"]):
-                    _file_filter = self._settings.get(["upload_other_filter"]).lower().split(',')
+                    other_file_filter = self._settings.get(["upload_other_filter"]).lower().split(',')
                 else:
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
-                    _file_filter = ["*.gcode","*.stl"]
+                    other_file_filter = ["*.gcode","*.stl"]
 
                 _file_match = False
-                for pattern in _file_filter:
-                    if fn(local_file.lower(), pattern.strip()):
-                        self._logger.info("Local file " + local_file + " matches " + pattern + ", will upload")
+                for pattern in other_file_filter:
+                    if fn(local_file.lower(), ospath.join('/', pattern.strip())):
+                        self._logger.info("Local file " + local_file_path + " matches " + pattern + ", will upload")
                         _file_match = True
                         break
                     else:
-                        self._logger.info("Local file " + local_file + " doesn't match " + pattern)
+                        self._logger.debug("Local file " + local_file_path + " doesn't match " + pattern)
 
                 if not _file_match:
-                    self._logger.info("Local file " + local_file + " does not match any pattern, will NOT upload")
+                    self._logger.info("Local file " + local_file_path + " does not match any pattern, will NOT upload")
                     return
 
                 if self._settings.get(["upload_other_path"]):
@@ -149,9 +148,8 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
                     upload_path = now.strftime(self._settings.get(["upload_path"]))
                 upload_name = local_file_name
-                self._logger.info("File " + local_file_name + " was created in " + local_file_path + " on storage " + local_file_storage + ", will upload to " + upload_path)
-                self._logger.info(local_file_type)
-                return
+                self._logger.debug("File " + local_file_path + " was created on storage " + local_file_storage + ", will upload to " + upload_path)
+                self._logger.debug(local_file_type)
 
             davclient = Client(davoptions)
             davclient.verify = self._settings.get(["verify_certificate"])
