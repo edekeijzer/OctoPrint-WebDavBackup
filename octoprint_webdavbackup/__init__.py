@@ -288,27 +288,21 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 user="edekeijzer",
                 repo="OctoPrint-WebDavBackup",
                 current=self._plugin_version,
-				stable_branch=dict(
-					name="Stable",
-					branch="main",
-					comittish=["main"]
-				),
-				prerelease_branches=[
-					dict(
-						name="Release Candidate",
-						branch="rc",
-						comittish=["rc", "main"]
-					),
-					dict(
-						name="Development",
-						branch="dev",
-						comittish=["dev", "rc", "main"]
-					),
-				],
+                stable_branch=dict(
+                    name="Stable",
+                    branch="main",
+                    comittish=["main"]
+                ),
+                prerelease_branches=[
+                    dict(
+                        name="Development",
+                        branch="dev",
+                        comittish=["dev", "main"]
+                    ),
+                ],
                 pip="https://github.com/edekeijzer/OctoPrint-WebDavBackup/archive/{target_version}.zip"
             )
         )
-
 
 __plugin_name__ = "WebDAV Backup"
 __plugin_pythoncompat__ = ">=3,<4"
