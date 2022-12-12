@@ -125,5 +125,35 @@
                 </span>
             </div>
         </div>
+        <div class="control-group">
+            <div class="controls">
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.upload_other">{{ _('Upload other files') }}
+                </label>
+                <span class="help-block">
+                    Should we upload other files when uploaded to OctoPrint?
+                </span>
+            </div>
+        </div>
+        <div data-bind="visible: settings.plugins.webdavbackup.upload_other" style="display: none">
+            <div class="control-group">
+                <label class="control-label">{{ _('File path') }}</label>
+                <div class="controls">
+                    <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_other_path">
+                    <span class="help-block">
+                        The path to save the files to. When empty, the same path as configured for the backups will be used.
+                    </span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">{{ _('Filter') }}</label>
+                <div class="controls">
+                    <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_other_filter">
+                    <span class="help-block">
+                        Which file extensions to upload (comma separated, default: *.gcode,*.stl)
+                    </span>
+                </div>
+            </div>
+        </div>
     </div>
 </form>

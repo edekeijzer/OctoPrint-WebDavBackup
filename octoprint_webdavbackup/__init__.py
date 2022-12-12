@@ -6,8 +6,9 @@ from os import remove as osremove
 import math
 import logging
 from webdav3.client import Client
-from webdav3.exceptions import WebDavException, ResponseErrorCode, RemoteResourceNotFound, RemoteParentNotFound
 # import webdav3.exceptions
+from webdav3.exceptions import WebDavException, ResponseErrorCode, RemoteResourceNotFound, RemoteParentNotFound
+from fnmatch import fnmatch as fn
 from datetime import datetime
 from http import HTTPStatus
 import octoprint.plugin
@@ -40,6 +41,9 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             upload_timelapse_name=None,
             upload_timelapse_video=True,
             upload_timelapse_snapshots=False, # This will not be visible in settings
+            upload_other=False,
+            upload_other_path=None,
+            upload_other_filter="*.gcode,*.stl",
             remove_after_upload=False,
         )
         return settings_defaults
@@ -56,7 +60,8 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
     def on_event(self, event, payload):
         upload_timelapse_video = self._settings.get(["upload_timelapse_video"])
         upload_timelapse_snapshots = self._settings.get(["upload_timelapse_snapshots"])
-        if event == "plugin_backup_backup_created" or (event == "MovieDone" and upload_timelapse_video) or (event == "CaptureDone" and upload_timelapse_snapshots):
+        upload_timelapse_other = self._settings.get(["upload_other"])
+        if event == "plugin_backup_backup_created" or (event == "MovieDone" and upload_timelapse_video) or (event == "CaptureDone" and upload_timelapse_snapshots) or (event == "FileAdded" and upload_other):
             # Helper function for human readable sizes
             def _convert_size(size_bytes):
                 if size_bytes == 0:
@@ -112,6 +117,42 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 else:
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
                     upload_path = now.strftime(self._settings.get(["upload_path"]))
+            elif event == "FileAdded":
+                local_file_storage = payload["storage"]
+                local_file_path = payload["path"]
+                local_file_name = payload["name"]
+                local_file = ospath.join("/", local_file_path, local_file_name)
+                local_file_type = payload["type"]
+
+                if self._settings.get(["upload_other_filter"]):
+                    _file_filter = self._settings.get(["upload_other_filter"]).split(',')
+                else:
+                    # If no specific path is set for timelapses, upload them to the same directory as the backups
+                    _file_filter = ["*.gcode","*.stl"]
+
+                _file_match = False
+                for pattern in _file_filter:
+                    if fn(local_file, pattern.strip()):
+                        self._logger.info("Local file " + local_file + " matches " + pattern ", will upload")
+                        _file_match = True
+                        break
+                    else:
+                        self._logger.info("Local file " + local_file + " doesn't match " + pattern)
+
+                
+                if not _file_match:
+                    self._logger.info("Local file " + local_file + " does not match any pattern, will NOT upload")
+                    return
+
+                if self._settings.get(["upload_other_path"]):
+                    upload_path = now.strftime(self._settings.get(["upload_other_path"]))
+                else:
+                    # If no specific path is set for timelapses, upload them to the same directory as the backups
+                    upload_path = now.strftime(self._settings.get(["upload_path"]))
+                upload_name = local_file_name
+                self._logger.info("File " + local_file_name + " was created in " + local_file_path + " on storage " + local_file_storage + ", will upload to " + upload_path)
+                self._logger.info(local_file_type)
+                return
 
             davclient = Client(davoptions)
             davclient.verify = self._settings.get(["verify_certificate"])
@@ -122,7 +163,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             self._logger.debug("Filename for upload: " + upload_name)
 
             upload_file = ospath.join("/", upload_path, upload_name)
-            upload_temp = ospath.join("/", upload_path, upload_name + ".tmp")
+            upload_temp = ospath.join("/", upload_file + ".tmp")
 
             self._logger.debug("Upload location: " + upload_file)
 
