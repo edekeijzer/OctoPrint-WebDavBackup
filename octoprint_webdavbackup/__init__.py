@@ -60,7 +60,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
     def on_event(self, event, payload):
         upload_timelapse_video = self._settings.get(["upload_timelapse_video"])
         upload_timelapse_snapshots = self._settings.get(["upload_timelapse_snapshots"])
-        upload_timelapse_other = self._settings.get(["upload_other"])
+        upload_other = self._settings.get(["upload_other"])
         if event == "plugin_backup_backup_created" or (event == "MovieDone" and upload_timelapse_video) or (event == "CaptureDone" and upload_timelapse_snapshots) or (event == "FileAdded" and upload_other):
             # Helper function for human readable sizes
             def _convert_size(size_bytes):
@@ -125,21 +125,20 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 local_file_type = payload["type"]
 
                 if self._settings.get(["upload_other_filter"]):
-                    _file_filter = self._settings.get(["upload_other_filter"]).split(',')
+                    _file_filter = self._settings.get(["upload_other_filter"]).lower().split(',')
                 else:
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
                     _file_filter = ["*.gcode","*.stl"]
 
                 _file_match = False
                 for pattern in _file_filter:
-                    if fn(local_file, pattern.strip()):
-                        self._logger.info("Local file " + local_file + " matches " + pattern ", will upload")
+                    if fn(local_file.lower(), pattern.strip()):
+                        self._logger.info("Local file " + local_file + " matches " + pattern + ", will upload")
                         _file_match = True
                         break
                     else:
                         self._logger.info("Local file " + local_file + " doesn't match " + pattern)
 
-                
                 if not _file_match:
                     self._logger.info("Local file " + local_file + " does not match any pattern, will NOT upload")
                     return
