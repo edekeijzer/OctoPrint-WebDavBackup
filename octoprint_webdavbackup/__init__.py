@@ -15,6 +15,7 @@ import octoprint.plugin
 from octoprint.events import Events, eventManager
 from octoprint.server import user_permission
 from octoprint.settings import settings
+from octoprint.filemanager.storage import LocalFileStorage
 
 class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                               octoprint.plugin.AssetPlugin,
@@ -122,6 +123,8 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 local_file_path = payload["path"]
                 local_file_name = payload["name"]
                 local_file_type = payload["type"]
+                _lfs = LocalFileStorage('/')
+                self._logger.debug(_lfs.get_path_on_disk(local_file_path))
 
                 if self._settings.get(["upload_other_filter"]):
                     other_file_filter = self._settings.get(["upload_other_filter"]).lower().split(',')
@@ -131,7 +134,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
                 _file_match = False
                 for pattern in other_file_filter:
-                    if fn(local_file.lower(), ospath.join('/', pattern.strip())):
+                    if fn(local_file_path.lower(), ospath.join('/', pattern.strip())):
                         self._logger.info("Local file " + local_file_path + " matches " + pattern + ", will upload")
                         _file_match = True
                         break
