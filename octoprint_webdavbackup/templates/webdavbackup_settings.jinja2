@@ -1,3 +1,6 @@
+<!-- ko if: settings.plugins.arc_welder -->
+<span class="help-inline label label-important" data-bind="visible: settings.plugins.webdavbackup.upload_other_overwrite">We have detected <a href="https://plugins.octoprint.org/plugins/arc_welder/" target="_blank">Arc Welder</a> on your system. Please enable <em>Overwrite existing files</em> (or disable Overwrite Source File in Arc Welder) if you want the processed gcode to be saved.</span>
+<!-- /ko -->
 <form id="webdavbackup_plugin_settings" class="form-horizontal">
     <h4>Connection settings</h4>
     <div class="accordion-inner">
@@ -123,6 +126,56 @@
                 <span class="help-block">
                     Should we remove backups and timelapse videos after successful upload to save local space?
                 </span>
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="controls">
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.upload_other">{{ _('Upload other files') }}
+                </label>
+                <span class="help-block">
+                    Should we upload other files when uploaded to OctoPrint?
+                </span>
+            </div>
+        </div>
+        <div data-bind="visible: settings.plugins.webdavbackup.upload_other" style="display: none">
+            <div class="control-group">
+                <label class="control-label">{{ _('File path') }}</label>
+                <div class="controls">
+                    <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_other_path">
+                    <span class="help-block">
+                        The path to save the files to. When empty, the same path as configured for the backups will be used.
+                    </span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">{{ _('Filter') }}</label>
+                <div class="controls">
+                    <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_other_filter">
+                    <span class="help-block">
+                        Which file extensions to upload (comma separated, default: *.gcode,*.stl)
+                    </span>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.upload_other_full_path">{{ _('Keep OctoPrint folder structure') }}
+                    </label>
+                    <span class="help-block">
+                        Create folder structure 
+                    </span>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.upload_other_overwrite">{{ _('Overwrite existing files') }}
+                    </label>
+                    <span class="help-block">
+                        Should we overwrite existing files? Please note that some plugins will modify and save (gcode) files, which will trigger a 'file added' event multiple times.
+                    </span>
+                </div>
             </div>
         </div>
     </div>
