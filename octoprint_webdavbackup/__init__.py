@@ -44,6 +44,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             upload_other=False,
             upload_other_path=None,
             upload_other_filter="*.gcode,*.stl",
+            upload_other_overwrite=True,
             remove_after_upload=False,
         )
         return settings_defaults
@@ -61,6 +62,8 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
         upload_timelapse_video = self._settings.get(["upload_timelapse_video"])
         upload_timelapse_snapshots = self._settings.get(["upload_timelapse_snapshots"])
         upload_other = self._settings.get(["upload_other"])
+        remove_after_upload = self._settings.get(["remove_after_upload"])
+
         if event == "plugin_backup_backup_created" or (event == "MovieDone" and upload_timelapse_video) or (event == "CaptureDone" and upload_timelapse_snapshots) or (event == "FileAdded" and upload_other):
             # Helper function for human readable sizes
             def _convert_size(size_bytes):
@@ -82,12 +85,15 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 'disable_check': self._settings.get(["disable_path_check"]),
             }
 
+            # Set a safe default here
+            upload_overwrite = False
+
             if event == "plugin_backup_backup_created":
                 local_file_path = payload["path"]
                 local_file_name = payload["name"]
                 self._logger.info("Backup " + local_file_path + " created, will now attempt to upload to " + davoptions["webdav_hostname"])
                 if self._settings.get(["upload_name"]):
-                    upload_name = now.strftime(self._settings.get(["upload_name"])) + ospath.splitext(local_file_path)[1]
+                    upload_name = now.strftime(self._settings.get(["upload_name"])) + ospath.splitext(local_file_path)[-1]
                 else:
                     upload_name = local_file_name
                 upload_path = now.strftime(self._settings.get(["upload_path"]))
@@ -105,6 +111,9 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
                     upload_path = now.strftime(self._settings.get(["upload_path"]))
             elif event == "CaptureDone":
+                # Removing snapshots makes it hard to create a timelapse
+                remove_after_upload = False
+
                 local_file_path = payload["file"]
                 local_file_name = ospath.split(local_file_path)[1]
                 self._logger.info("Timelapse snapshot " + local_file_path + " created, will now attempt to upload to " + davoptions["webdav_hostname"] + " as " + local_file_name)
@@ -118,12 +127,17 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
                     upload_path = now.strftime(self._settings.get(["upload_path"]))
             elif event == "FileAdded":
+                # Removing random files is undesired behavior
+                remove_after_upload = False
+
+                upload_overwrite = self._settings.get(["upload_other_overwrite"])
+
                 local_file_storage = payload["storage"]
                 local_file_path = payload["path"]
                 local_file_name = payload["name"]
                 local_file_type = payload["type"]
                 _local_storage = self._settings.getBaseFolder("uploads")
-                self._logger.debug(_local_storage)
+                self._logger.debug(f"Upload folder: {_local_storage}")
 
                 if self._settings.get(["upload_other_filter"]):
                     other_file_filter = self._settings.get(["upload_other_filter"]).lower().split(',')
@@ -133,7 +147,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
                 _file_match = False
                 for pattern in other_file_filter:
-                    if fn(local_file_path.lower(), ospath.join('/', pattern.strip())):
+                    if fn(ospath.join('/', local_file_path.lower()), ospath.join('/', pattern.strip())):
                         self._logger.info("Local file " + local_file_path + " matches " + pattern + ", will upload")
                         _file_match = True
                         break
@@ -149,8 +163,12 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 else:
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
                     upload_path = now.strftime(self._settings.get(["upload_path"]))
+                
+                if self._settings.get(["upload_other_full_path"]):
+                    upload_path = ospath.join(upload_path, ospath.dirname(local_file_path))
                 upload_name = local_file_name
-                self._logger.debug("File " + local_file_path + " was created on storage " + local_file_storage + ", will upload to " + upload_path)
+                self._logger.debug("File " + local_file_path + " was created on storage " + local_file_storage + ", will upload to " + ospath.join(upload_path, upload_name))
+                local_file_path = ospath.join(_local_storage, local_file_path)
                 self._logger.debug(local_file_type)
 
             davclient = Client(davoptions)
@@ -218,8 +236,12 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
             else:
                 self._logger.warning("All checks for successful connection are disabled.")
 
-            local_file_size = ospath.getsize(local_file_path)
-            self._logger.info("File size: " + _convert_size(local_file_size))
+            try:
+                local_file_size = ospath.getsize(local_file_path)
+                self._logger.info("File size: " + _convert_size(local_file_size))
+            except FileNotFoundError:
+                self._logger.warning(f"File {local_file_path} not found, this is a known issue when moving a file.")
+                return
 
             if check_space and (local_file_size > dav_free):
                 self._logger.error("Unable to upload, size is" + _convert_size(local_file_size) + ", free space is " + _convert_size(dav_free))
@@ -248,12 +270,10 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                         self._logger.debug("Uploading " + local_file_path + " to " + upload_temp)
                         davclient.upload_sync(remote_path=upload_temp, local_path=local_file_path)
                         self._logger.debug("Moving " + upload_temp + " to " + upload_file)
-                        davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file)
+                        davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file, overwrite=upload_overwrite)
                         self._logger.info("File has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
 
-                        remove_after_upload = self._settings.get(["remove_after_upload"])
-                        if remove_after_upload and event != "CaptureDone":
-                            # Don't remove the timelapse snapshots, it will make it hard to create a video from them!
+                        if remove_after_upload:
                             self._logger.debug("Removing local file after successful upload has been enabled.")
                             osremove(local_file_path)
                     except RemoteParentNotFound:
