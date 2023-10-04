@@ -1,12 +1,10 @@
 # coding=utf-8
 from __future__ import absolute_import
-
 from os import path as ospath
 from os import remove as osremove
 import math
 import logging
 from webdav3.client import Client
-# import webdav3.exceptions
 from webdav3.exceptions import WebDavException, ResponseErrorCode, RemoteResourceNotFound, RemoteParentNotFound
 from fnmatch import fnmatch as fn
 from datetime import datetime
@@ -97,6 +95,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 else:
                     upload_name = local_file_name
                 upload_path = now.strftime(self._settings.get(["upload_path"]))
+
             elif event == "MovieDone":
                 local_file_path = payload["movie"]
                 local_file_name = payload["movie_basename"]
@@ -110,6 +109,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 else:
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
                     upload_path = now.strftime(self._settings.get(["upload_path"]))
+
             elif event == "CaptureDone":
                 # Removing snapshots makes it hard to create a timelapse
                 remove_after_upload = False
@@ -126,6 +126,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 else:
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
                     upload_path = now.strftime(self._settings.get(["upload_path"]))
+
             elif event == "FileAdded":
                 # Removing random files is undesired behavior
                 remove_after_upload = False
@@ -193,7 +194,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                     if dav_free < 0:
                         # If we get a negative free size, this server is not returning correct value.
                         check_space = False
-                        self._logger.warning("Free space on server: " + _convert_size(dav_free) + ", it appears your server does not support reporting size correctly but it's still a proper way to check connectivity.")
+                        self._logger.warning("Free space on server: " + dav_free + ", it appears your server does not support reporting size correctly but it's still a proper way to check connectivity.")
                     else:
                         self._logger.info("Free space on server: " + _convert_size(dav_free))
                 except RemoteResourceNotFound as exception:
