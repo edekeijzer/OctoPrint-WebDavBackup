@@ -164,7 +164,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 else:
                     # If no specific path is set for timelapses, upload them to the same directory as the backups
                     upload_path = now.strftime(self._settings.get(["upload_path"]))
-                
+
                 if self._settings.get(["upload_other_full_path"]):
                     upload_path = ospath.join(upload_path, ospath.dirname(local_file_path))
                 upload_name = local_file_name
@@ -194,7 +194,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                     if dav_free < 0:
                         # If we get a negative free size, this server is not returning correct value.
                         check_space = False
-                        self._logger.warning("Free space on server: " + dav_free + ", it appears your server does not support reporting size correctly but it's still a proper way to check connectivity.")
+                        self._logger.warning("Free space on server: " + str(dav_free) + ", it appears your server does not support reporting size correctly but it's still a proper way to check connectivity.")
                     else:
                         self._logger.info("Free space on server: " + _convert_size(dav_free))
                 except RemoteResourceNotFound as exception:
