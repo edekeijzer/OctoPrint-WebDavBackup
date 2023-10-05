@@ -303,10 +303,10 @@ class WebDavBackupPlugin(
         ]
 
     ##~~ SimpleApiPlugin mixin
-	def get_api_commands(self):
-		return dict(
-			test_connection=[]
-		)
+    def get_api_commands(self):
+        return dict(
+            test_connection=[]
+        )
 
     def on_api_command(self, command, data):
         self._logger.info(f"Received API command: {command}")
