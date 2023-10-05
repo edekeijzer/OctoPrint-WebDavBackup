@@ -65,6 +65,24 @@
             </div>
         </div>
     </div>
+    <div class="control-group">
+        <button class="btn btn-primary" id="test_connection"
+            data-bind="click: testWebDavConnection">
+            <i class="fa fa-spinner fa-spin" data-bind="visible: testing_connection" style="display: none;"></i>
+            Test connection
+        </button>
+        <div class="alert alert-info" data-bind="visible: testing_connection">
+            <strong>Testing...</strong><br>
+        </div>
+        <div class="alert alert-success" id="test_success" data-bind="visible: test_succeeded">
+            <button type="button" class="close" data-bind="click: function(data){test_succeeded(false)}"
+                aria-hidden="true">&times;</button>
+            <strong>Test succeeded</strong>
+        </div>
+        <div class="alert alert-error" id="test_failed" data-bind="visible: test_failed">
+            <strong>Test failed</strong> Some error description here
+        </div>
+    </div>
     <h4>File and folder settings</h4>
     <div class="accordion-inner">
         <span class="help-block">

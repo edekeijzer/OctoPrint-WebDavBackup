@@ -13,15 +13,134 @@ import octoprint.plugin
 from octoprint.events import Events, eventManager
 from octoprint.server import user_permission
 from octoprint.settings import settings
+from random import choice
+from string import ascii_letters, digits
 
-class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
-                              octoprint.plugin.AssetPlugin,
-                              octoprint.plugin.TemplatePlugin,
-                              octoprint.plugin.EventHandlerPlugin,
+class WebDavBackupPlugin(
+    octoprint.plugin.SettingsPlugin,
+    octoprint.plugin.AssetPlugin,
+    octoprint.plugin.TemplatePlugin,
+    octoprint.plugin.EventHandlerPlugin,
+    octoprint.plugin.SimpleApiPlugin,
 ):
 
     def __init__(self):
         self._logger = logging.getLogger(__name__)
+        self.dav_client = self.update_dav_client()
+
+    def update_dav_client(self):
+        _dav_options = {
+            'webdav_hostname': self._settings.get(["server"]),
+            'webdav_login':    self._settings.get(["username"]),
+            'webdav_password': self._settings.get(["password"]),
+            'webdav_timeout': self._settings.get(["timeout"]),
+            'disable_check': self._settings.get(["disable_path_check"]),
+        }
+        _dav_client = Client(_dav_options)
+        _dav_client.verify = self._settings.get(["verify_certificate"])
+        return _dav_client
+
+    def test_dav_connection(self):
+        great_success = False
+        check_space = self._settings.get(["check_space"])
+        skip_path_check = self._settings.get(["disable_path_check"])
+        upload_path = ospath.join("/", upload_path)
+        upload_name = ''.join((choice(ascii_letters + digits) for i in range(8)))
+
+        self._logger.debug("Filename for upload: " + upload_name)
+
+        upload_file = ospath.join("/", upload_path, upload_name)
+
+        self._logger.debug("Upload location: " + upload_file)
+
+        # Check actual connection to the WebDAV server as the check command will not do this.
+        if check_space:
+            self._logger.debug("Attempting to check free space.")
+            free_space = self.get_dav_space()
+            great_success = bool(free_space)
+        elif not skip_path_check:
+            self._logger.debug("Not checking free space, just try to check the WebDAV root.")
+            # Not as proper of a check as retrieving size, but it's something.
+            great_success = self.dav_client.check("/")
+            if great_success:
+                self._logger.debug("Server returned WebDAV root.")
+            else:
+                self._logger.error("Server did not return WebDAV root, something is probably wrong with your settings.")
+        else:
+            self._logger.warning("All checks for successful connection are disabled.")
+        try:
+            self.dav_client.upload_sync(remote_path=upload_file, local_path=local_file_path)
+
+    def get_dav_space(self):
+        try:
+            dav_free = self.dav_client.free()
+            if dav_free < 0:
+                # If we get a negative free size, this server is not returning correct value.
+                self._logger.warning("Free space on server: " + str(dav_free) + ", it appears your server does not support reporting size correctly but it's still a proper way to check connectivity.")
+                return True
+            else:
+                self._logger.info("Free space on server: " + self._convert_size(dav_free))
+                return dav_free
+        except RemoteResourceNotFound as exception:
+            self._logger.error("Resource was not found, something is probably wrong with your settings.")
+            return False
+        except ResponseErrorCode as exception:
+            # Write error and exit function
+            status = HTTPStatus(exception.code)
+            error_switcher = {
+                400: "Bad request",
+                401: "Unauthorized",
+                403: "Forbidden",
+                404: "Not found",
+                405: "Method not allowed",
+                408: "Request timeout",
+                500: "Internal error",
+                501: "Not implemented",
+                502: "Bad gateway",
+                503: "Service unavailable",
+                504: "Gateway timeout",
+                508: "Loop detected",
+            }
+            if (exception.code == 401):
+                http_error = "HTTP error 401 encountered, your credentials are most likely wrong."
+                return False
+            else:
+                http_error = "HTTP error encountered: " + str(status.value) + " " + error_switcher.get(exception.code, status.phrase)
+            self._logger.error(http_error)
+            return False
+        except WebDavException as exception:
+            self._logger.error("An unexpected WebDAV error was encountered: " + exception.args)
+            raise
+
+    # Helper function to recursively create paths
+    def create_dav_path(self, path):
+        # Append leading / for preventing abspath issues
+        path = ospath.join("/", path)
+        if self.dav_client.check(path):
+            self._logger.debug("Directory " + path + " was found.")
+            return True
+        else:
+            if path != "/":
+                self._logger.debug("Directory " + path + " was not found, checking parent.")
+                if _recursive_create_path(ospath.abspath(ospath.join(path, ".."))):
+                    self.dav_client.mkdir(path)
+                    self._logger.debug("Directory " + path + " has been created.")
+                    return True
+            else:
+                self._logger.error("Could not find WebDAV root, something is probably wrong with your settings.")
+                return False
+
+
+    # Helper function for human readable sizes
+    def _convert_size(self, size_bytes):
+        if size_bytes == 0:
+            return "0B"
+        size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+        i = int(math.floor(math.log(size_bytes, 1024)))
+        p = math.pow(1024, i)
+        s = round(size_bytes / p, 2)
+        return "%s %s" % (s, size_name[i])
+
 
     ##~~ SettingsPlugin mixin
     def get_settings_defaults(self):
@@ -54,6 +173,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
 
     def on_settings_save(self, data):
         octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
+        self.dav_client = self.update_dav_client()
 
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
@@ -63,25 +183,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
         remove_after_upload = self._settings.get(["remove_after_upload"])
 
         if event == "plugin_backup_backup_created" or (event == "MovieDone" and upload_timelapse_video) or (event == "CaptureDone" and upload_timelapse_snapshots) or (event == "FileAdded" and upload_other):
-            # Helper function for human readable sizes
-            def _convert_size(size_bytes):
-                if size_bytes == 0:
-                    return "0B"
-                size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
-                i = int(math.floor(math.log(size_bytes, 1024)))
-                p = math.pow(1024, i)
-                s = round(size_bytes / p, 2)
-                return "%s %s" % (s, size_name[i])
-
             now = datetime.now()
-
-            davoptions = {
-                'webdav_hostname': self._settings.get(["server"]),
-                'webdav_login':    self._settings.get(["username"]),
-                'webdav_password': self._settings.get(["password"]),
-                'webdav_timeout': self._settings.get(["timeout"]),
-                'disable_check': self._settings.get(["disable_path_check"]),
-            }
 
             # Set a safe default here
             upload_overwrite = False
@@ -172,8 +274,6 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 local_file_path = ospath.join(_local_storage, local_file_path)
                 self._logger.debug(local_file_type)
 
-            davclient = Client(davoptions)
-            davclient.verify = self._settings.get(["verify_certificate"])
             check_space = self._settings.get(["check_space"])
             skip_path_check = self._settings.get(["disable_path_check"])
             upload_path = ospath.join("/", upload_path)
@@ -190,7 +290,7 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 self._logger.debug("Attempting to check free space.")
                 try:
                     # If the resource was not found
-                    dav_free = davclient.free()
+                    dav_free = self.dav_client.free()
                     if dav_free < 0:
                         # If we get a negative free size, this server is not returning correct value.
                         check_space = False
@@ -248,28 +348,10 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
                 self._logger.error("Unable to upload, size is" + _convert_size(local_file_size) + ", free space is " + _convert_size(dav_free))
                 return
             else:
-                # Helper function to recursively create paths
-                def _recursive_create_path(path):
-                    # Append leading / for preventing abspath issues
-                    path = ospath.join("/", path)
-                    if davclient.check(path):
-                        self._logger.debug("Directory " + path + " was found.")
-                        return True
-                    else:
-                        if path != "/":
-                            self._logger.debug("Directory " + path + " was not found, checking parent.")
-                            if _recursive_create_path(ospath.abspath(ospath.join(path, ".."))):
-                                davclient.mkdir(path)
-                                self._logger.debug("Directory " + path + " has been created.")
-                                return True
-                        else:
-                            self._logger.error("Could not find WebDAV root, something is probably wrong with your settings.")
-                            return False
-
-                if _recursive_create_path(upload_path):
+                if self.create_dav_path(upload_path):
                     try:
                         self._logger.debug("Uploading " + local_file_path + " to " + upload_temp)
-                        davclient.upload_sync(remote_path=upload_temp, local_path=local_file_path)
+                        self.dav_client.upload_sync(remote_path=upload_temp, local_path=local_file_path)
                         self._logger.debug("Moving " + upload_temp + " to " + upload_file)
                         davclient.move(remote_path_from=upload_temp, remote_path_to=upload_file, overwrite=upload_overwrite)
                         self._logger.info("File has been uploaded successfully to " + davoptions["webdav_hostname"] + " as " + upload_file)
@@ -293,9 +375,28 @@ class WebDavBackupPlugin(octoprint.plugin.SettingsPlugin,
     def get_template_configs(self):
         return [
             dict(
-                type="settings", custom_bindings=False
+                type="settings", custom_bindings=True
             )
         ]
+
+    ##~~ SimpleApiPlugin mixin
+	def get_api_commands(self):
+		return dict(
+			test_connection=[]
+		)
+
+    def on_api_command(self, command, data):
+        self._logger.info(f"Received API command: {command}")
+        if command == "test_connection":
+            from random import randint
+            from time import sleep
+            sleep(2)
+            test_result = (randint(0,2) > 0)
+            return dict(success=test_result) # Return true, sometimes false
+
+    ##~~ AssetPlugin mixin
+    def get_assets(self):
+        return dict(js=["js/WebDavBackup.js"])
 
     ##~~ Softwareupdate hook
     def get_update_information(self):
