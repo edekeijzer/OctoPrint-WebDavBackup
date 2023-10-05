@@ -9,6 +9,7 @@ from webdav3.exceptions import WebDavException, ResponseErrorCode, RemoteResourc
 from fnmatch import fnmatch as fn
 from datetime import datetime
 from http import HTTPStatus
+from random import randint
 import octoprint.plugin
 from octoprint.events import Events, eventManager
 from octoprint.server import user_permission
@@ -26,30 +27,6 @@ class WebDavBackupPlugin(
 
     def __init__(self):
         self._logger = logging.getLogger(__name__)
-        self.dav_client = self.update_dav_client()
-
-    def update_dav_client(self):
-        _dav_options = {
-            'webdav_hostname': self._settings.get(["server"]),
-            'webdav_login':    self._settings.get(["username"]),
-            'webdav_password': self._settings.get(["password"]),
-            'webdav_timeout': self._settings.get(["timeout"]),
-            'disable_check': self._settings.get(["disable_path_check"]),
-        }
-        _dav_client = Client(_dav_options)
-        _dav_client.verify = self._settings.get(["verify_certificate"])
-        return _dav_client
-
-    # Helper function for human readable sizes
-    def _convert_size(self, size_bytes):
-        if size_bytes == 0:
-            return "0B"
-        size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
-        i = int(math.floor(math.log(size_bytes, 1024)))
-        p = math.pow(1024, i)
-        s = round(size_bytes / p, 2)
-        return "%s %s" % (s, size_name[i])
-
 
     ##~~ SettingsPlugin mixin
     def get_settings_defaults(self):
@@ -82,7 +59,6 @@ class WebDavBackupPlugin(
 
     def on_settings_save(self, data):
         octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
-        self.dav_client = self.update_dav_client()
 
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
