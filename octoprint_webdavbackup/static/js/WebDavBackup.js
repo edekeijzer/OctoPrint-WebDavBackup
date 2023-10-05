@@ -10,11 +10,12 @@ $(function() {
 
         self.testWebDavConnection = function(data) {
             console.log("WebDavBackup test_connection");
-            self.test_succeeded = ko.observable(false);
-            self.test_failed = ko.observable(false);
+            self.test_succeeded(false);
+            self.test_failed(false);
             self.testing_connection(true);
             OctoPrint.simpleApiCommand("webdavbackup", "test_connection")
                 .done(function(response) {
+                    console.log(response);
                     self.testing_connection(false);
                     self.test_succeeded(response.success);
                     self.test_failed(!response.success);
