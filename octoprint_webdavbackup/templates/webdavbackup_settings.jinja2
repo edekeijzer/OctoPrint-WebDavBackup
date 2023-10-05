@@ -1,5 +1,5 @@
-<!-- ko if: settings.plugins.arc_welder -->
-<span class="help-inline label label-important" data-bind="visible: settings.plugins.webdavbackup.upload_other_overwrite">We have detected <a href="https://plugins.octoprint.org/plugins/arc_welder/" target="_blank">Arc Welder</a> on your system. Please enable <em>Overwrite existing files</em> (or disable Overwrite Source File in Arc Welder) if you want the processed gcode to be saved.</span>
+<!-- ko if: settingsViewModel.settings.plugins.arc_welder -->
+<span class="help-inline label label-important" data-bind="visible: settingsViewModel.settings.plugins.webdavbackup.upload_other_overwrite">We have detected <a href="https://plugins.octoprint.org/plugins/arc_welder/" target="_blank">Arc Welder</a> on your system. Please enable <em>Overwrite existing files</em> (or disable Overwrite Source File in Arc Welder) if you want the processed gcode to be saved.</span>
 <!-- /ko -->
 <form id="webdavbackup_plugin_settings" class="form-horizontal">
     <h4>Connection settings</h4>
@@ -7,7 +7,7 @@
         <div class="control-group">
             <label class="control-label">{{ _('Server') }}</label>
             <div class="controls">
-                <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.server">
+                <input type="text" class="input-block-level" data-bind="value: settingsViewModel.settings.plugins.webdavbackup.server">
                 <span class="help-block">
                     The WebDAV server to connect to.
                 </span>
@@ -16,11 +16,11 @@
         <div class="control-group">
             <label class="control-label">{{ _('Username') }}</label>
             <div class="controls">
-                <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.username">
+                <input type="text" class="input-block-level" data-bind="value: settingsViewModel.settings.plugins.webdavbackup.username">
             </div>
             <label class="control-label">{{ _('Password') }}</label>
             <div class="controls">
-                <input type="password" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.password">
+                <input type="password" class="input-block-level" data-bind="value: settingsViewModel.settings.plugins.webdavbackup.password">
                 <span class="help-block">
                     The username and password to authenticate against WebDAV.<br>
                     <b>Please note that the password will be stored in plain text! Use an app specific password if possible.</b>
@@ -30,7 +30,7 @@
         <div class="control-group">
             <div class="controls">
                 <label class="checkbox">
-                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.verify_certificate">{{ _('Verify certificate') }}
+                    <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.webdavbackup.verify_certificate">{{ _('Verify certificate') }}
                 </label>
                 <span class="help-block">
                     Uncheck to allow self-signed and expired certificates.
@@ -40,7 +40,7 @@
         <div class="control-group">
             <div class="controls">
                 <label class="checkbox">
-                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.check_space">{{ _('Check available space') }}
+                    <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.webdavbackup.check_space">{{ _('Check available space') }}
                 </label>
                 <span class="help-block">
                     Should we check if the server has enough free space available?<br/>
@@ -51,13 +51,13 @@
         <div class="control-group">
             <div class="controls">
                 <label class="checkbox">
-                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.disable_path_check">{{ _('Disable path check') }}
+                    <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.webdavbackup.disable_path_check">{{ _('Disable path check') }}
                 </label>
                 <span class="help-block">
                     Should we skip checking the path and create directories if needed?<br/>
                     Not all WebDAV servers support this.<br/>
                 </span>
-                <div data-bind="visible: settings.plugins.webdavbackup.disable_path_check" style="display: none">
+                <div data-bind="visible: settingsViewModel.settings.plugins.webdavbackup.disable_path_check" style="display: none">
                     <span class="help-block">
                         <b>Please note that this will require you to manually create the directories, it is strongly discouraged to use date variables in your path when you enable this!</b>
                     </span>
@@ -91,7 +91,7 @@
         <div class="control-group">
             <label class="control-label">{{ _('Backup path') }}</label>
             <div class="controls">
-                <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_path">
+                <input type="text" class="input-block-level" data-bind="value: settingsViewModel.settings.plugins.webdavbackup.upload_path">
                 <span class="help-block">
                     The path to save the backup files to.
                 </span>
@@ -100,7 +100,7 @@
         <div class="control-group">
             <label class="control-label">{{ _('Backup filename') }}</label>
             <div class="controls">
-                <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_name">
+                <input type="text" class="input-block-level" data-bind="value: settingsViewModel.settings.plugins.webdavbackup.upload_name">
                 <span class="help-block">
                     The name for the file, without extension. When empty, the name of the backup file generated by OctoPrint will be used.
                 </span>
@@ -109,18 +109,18 @@
         <div class="control-group">
             <div class="controls">
                 <label class="checkbox">
-                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.upload_timelapse_video">{{ _('Upload timelapse videos') }}
+                    <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.webdavbackup.upload_timelapse_video">{{ _('Upload timelapse videos') }}
                 </label>
                 <span class="help-block">
                     Should we upload timelapse videos?
                 </span>
             </div>
         </div>
-        <div data-bind="visible: settings.plugins.webdavbackup.upload_timelapse_video" style="display: none">
+        <div data-bind="visible: settingsViewModel.settings.plugins.webdavbackup.upload_timelapse_video" style="display: none">
             <div class="control-group">
                 <label class="control-label">{{ _('Timelapse path') }}</label>
                 <div class="controls">
-                    <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_timelapse_path">
+                    <input type="text" class="input-block-level" data-bind="value: settingsViewModel.settings.plugins.webdavbackup.upload_timelapse_path">
                     <span class="help-block">
                         The path to save the timelapse files to. When empty, the same path as configured for the backups will be used.
                     </span>
@@ -129,7 +129,7 @@
             <div class="control-group">
                 <label class="control-label">{{ _('Timelapse filename') }}</label>
                 <div class="controls">
-                    <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_timelapse_name">
+                    <input type="text" class="input-block-level" data-bind="value: settingsViewModel.settings.plugins.webdavbackup.upload_timelapse_name">
                     <span class="help-block">
                         The name for the file, without extension. When empty, the name of the file generated by OctoPrint will be used.
                     </span>
@@ -139,7 +139,7 @@
         <div class="control-group">
             <div class="controls">
                 <label class="checkbox">
-                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.remove_after_upload">{{ _('Remove after upload') }}
+                    <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.webdavbackup.remove_after_upload">{{ _('Remove after upload') }}
                 </label>
                 <span class="help-block">
                     Should we remove backups and timelapse videos after successful upload to save local space?
@@ -149,18 +149,18 @@
         <div class="control-group">
             <div class="controls">
                 <label class="checkbox">
-                    <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.upload_other">{{ _('Upload other files') }}
+                    <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.webdavbackup.upload_other">{{ _('Upload other files') }}
                 </label>
                 <span class="help-block">
                     Should we upload other files when uploaded to OctoPrint?
                 </span>
             </div>
         </div>
-        <div data-bind="visible: settings.plugins.webdavbackup.upload_other" style="display: none">
+        <div data-bind="visible: settingsViewModel.settings.plugins.webdavbackup.upload_other" style="display: none">
             <div class="control-group">
                 <label class="control-label">{{ _('File path') }}</label>
                 <div class="controls">
-                    <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_other_path">
+                    <input type="text" class="input-block-level" data-bind="value: settingsViewModel.settings.plugins.webdavbackup.upload_other_path">
                     <span class="help-block">
                         The path to save the files to. When empty, the same path as configured for the backups will be used.
                     </span>
@@ -169,7 +169,7 @@
             <div class="control-group">
                 <label class="control-label">{{ _('Filter') }}</label>
                 <div class="controls">
-                    <input type="text" class="input-block-level" data-bind="value: settings.plugins.webdavbackup.upload_other_filter">
+                    <input type="text" class="input-block-level" data-bind="value: settingsViewModel.settings.plugins.webdavbackup.upload_other_filter">
                     <span class="help-block">
                         Which file extensions to upload (comma separated, default: *.gcode,*.stl)
                     </span>
@@ -178,7 +178,7 @@
             <div class="control-group">
                 <div class="controls">
                     <label class="checkbox">
-                        <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.upload_other_full_path">{{ _('Keep OctoPrint folder structure') }}
+                        <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.webdavbackup.upload_other_full_path">{{ _('Keep OctoPrint folder structure') }}
                     </label>
                     <span class="help-block">
                         Create folder structure 
@@ -188,7 +188,7 @@
             <div class="control-group">
                 <div class="controls">
                     <label class="checkbox">
-                        <input type="checkbox" data-bind="checked: settings.plugins.webdavbackup.upload_other_overwrite">{{ _('Overwrite existing files') }}
+                        <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.webdavbackup.upload_other_overwrite">{{ _('Overwrite existing files') }}
                     </label>
                     <span class="help-block">
                         Should we overwrite existing files? Please note that some plugins will modify and save (gcode) files, which will trigger a 'file added' event multiple times.
