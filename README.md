@@ -1,3 +1,6 @@
+> [!WARNING]
+> ⚠️ This code is no longer maintained by me, as I'm no longer using OctoPrint for my 3D printer. Feel free to fork and continue development.
+
 # WebDAV Backup
 
 This plugin will automatically upload a backup upon completion to your WebDAV storage, like Nextcloud.
